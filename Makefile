@@ -1,5 +1,5 @@
 CC=g++
-HEADERS = common.h main.h parser.h LinuxV4l2Sink.h
+HEADERS = common.h main_new.h parser.h LinuxV4l2Sink.h
 OBJ = main_new.o parser.o LinuxV4l2Sink.o
 CPPFLAGS= -g
 
