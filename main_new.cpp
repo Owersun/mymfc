@@ -107,10 +107,10 @@ bool SetupDevices(char *header, int headerSize) {
 
   memzero(fmt);
   fmt.fmt.pix_mp.pixelformat = V4L2_PIX_FMT_H264;
-  fmt.fmt.pix_mp.plane_fmt[0].sizeimage = STREAM_BUFFER_SIZE;
+  fmt.fmt.pix_mp.plane_fmt[0].sizeimage = BUFFER_SIZE;
 
   iMFCOutput = new CLinuxV4l2Sink(m_iDecoderHandle, V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE);
-  if (!iMFCOutput->Init(&fmt, STREAM_BUFFER_CNT))
+  if (!iMFCOutput->Init(&fmt, INPUT_BUFFERS))
     return false;
 
   memzero(iBuffer);
@@ -142,7 +142,7 @@ bool SetupDevices(char *header, int headerSize) {
 
     fmt.fmt.pix_mp.pixelformat = V4L2_PIX_FMT_NV12M;
     iFIMCCapture = new CLinuxV4l2Sink(m_iConverterHandle, V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE);
-    iFIMCCapture->Init(&fmt, 3);
+    iFIMCCapture->Init(&fmt, OUTPUT_BUFFERS);
 
     iFIMCCapture->QueueAll();
 
@@ -215,8 +215,8 @@ int main(int argc, char** argv) {
   // Prepare header frame
   memzero(parser->ctx);
   char *header;
-  header = new char[STREAM_BUFFER_SIZE];
-  (parser->parse_stream)(&parser->ctx, in.p + in.offs, in.size - in.offs, header, STREAM_BUFFER_SIZE, &used, &frameSize, 1);
+  header = new char[BUFFER_SIZE];
+  (parser->parse_stream)(&parser->ctx, in.p + in.offs, in.size - in.offs, header, BUFFER_SIZE, &used, &frameSize, 1);
   msg("Extracted header of size %d", frameSize);
 
   if (!SetupDevices(header, frameSize))
@@ -237,7 +237,7 @@ int main(int argc, char** argv) {
 
     if (iMFCOutput->GetBuffer(&iBuffer)) {
       msg("Got buffer %d, filling", iBuffer.iIndex);
-      ret = (parser->parse_stream)(&parser->ctx, in.p + in.offs, in.size - in.offs, (char *)iBuffer.cPlane[0], STREAM_BUFFER_SIZE, &used, &frameSize, 0);
+      ret = (parser->parse_stream)(&parser->ctx, in.p + in.offs, in.size - in.offs, (char *)iBuffer.cPlane[0], BUFFER_SIZE, &used, &frameSize, 0);
       if (ret == 0 && in.offs == in.size) {
         msg("Parser has extracted all frames");
         parser->finished = true;

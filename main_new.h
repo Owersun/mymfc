@@ -14,7 +14,7 @@ struct in {
   int offs;
 };
 
-#define STREAM_BUFFER_SIZE        1048576 //compressed frame size. 1080p mpeg4 10Mb/s can be >256k in size, so this is to make sure frame fits into buffer
+#define BUFFER_SIZE        1048576 //compressed frame size. 1080p mpeg4 10Mb/s can be >256k in size, so this is to make sure frame fits into buffer
                                           //for very unknown reason lesser than 1Mb buffer causes MFC to corrupt its own setup setting inapropriate values
-#define FIMC_TO_VIDEO_BUFFERS_CNT 3 //triple buffering for smooth DRM output
-#define STREAM_BUFFER_CNT         3 //3 input buffers. 2 is enough almost for everything, but on some heavy videos 3 makes a difference
+#define INPUT_BUFFERS      3       //triple buffering for smooth DRM output
+#define OUTPUT_BUFFERS     3       //3 input buffers. 2 is enough almost for everything, but on some heavy videos 3 makes a difference
