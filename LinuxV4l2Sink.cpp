@@ -7,7 +7,7 @@
 #define CLASSNAME "CLinuxV4l2Sink"
 
 CLinuxV4l2Sink::CLinuxV4l2Sink(int fd, enum v4l2_buf_type type) {
-  Log(LOGDEBUG, "%s::%s - Creating Sink", CLASSNAME, __func__);
+  Log(LOGDEBUG, "%s::%s - Creating Sink, Device %d, Type %d", CLASSNAME, __func__, fd, type);
   m_Device = fd;
   m_Type = type;
   m_Buffers = NULL;
@@ -15,7 +15,7 @@ CLinuxV4l2Sink::CLinuxV4l2Sink(int fd, enum v4l2_buf_type type) {
 }
 
 CLinuxV4l2Sink::~CLinuxV4l2Sink() {
-  Log(LOGDEBUG, "%s::%s - Destroying Sink", CLASSNAME, __func__);
+  Log(LOGDEBUG, "%s::%s - Destroying Sink, Device %d, Type %d", CLASSNAME, __func__, m_Device, m_Type);
 
   StreamOn(VIDIOC_STREAMOFF);
 
@@ -86,7 +86,7 @@ bool CLinuxV4l2Sink::GetFormat(v4l2_format *format) {
   if (ioctl(m_Device, VIDIOC_G_FMT, format))
     return false;
   m_NumPlanes = format->fmt.pix_mp.num_planes;
-  Log(LOGDEBUG, "%s::%s - G_FMT type %d format 0x%x (%dx%d), plane[0]=%d plane[1]=%d", CLASSNAME, __func__, format->type, format->fmt.pix_mp.pixelformat, format->fmt.pix_mp.width, format->fmt.pix_mp.height, format->fmt.pix_mp.plane_fmt[0].sizeimage, format->fmt.pix_mp.plane_fmt[1].sizeimage);
+  Log(LOGDEBUG, "%s::%s - G_FMT Device %d, Type %d format 0x%x (%dx%d), plane[0]=%d plane[1]=%d", CLASSNAME, __func__, m_Device, format->type, format->fmt.pix_mp.pixelformat, format->fmt.pix_mp.width, format->fmt.pix_mp.height, format->fmt.pix_mp.plane_fmt[0].sizeimage, format->fmt.pix_mp.plane_fmt[1].sizeimage);
   return true;
 }
 
@@ -94,7 +94,7 @@ bool CLinuxV4l2Sink::SetFormat(v4l2_format *format) {
   format->type = m_Type;
   if (format->fmt.pix_mp.pixelformat == 0)
     return false;
-  Log(LOGDEBUG, "%s::%s - S_FMT type %d format 0x%x buffer size=%u", CLASSNAME, __func__, format->type, format->fmt.pix_mp.pixelformat, format->fmt.pix_mp.plane_fmt[0].sizeimage);
+  Log(LOGDEBUG, "%s::%s - S_FMT Device %d, Type %d format 0x%x buffer size=%u", CLASSNAME, __func__, m_Device, format->type, format->fmt.pix_mp.pixelformat, format->fmt.pix_mp.plane_fmt[0].sizeimage);
   format->type = m_Type;
   if (ioctl(m_Device, VIDIOC_S_FMT, format))
     return false;
@@ -106,20 +106,20 @@ bool CLinuxV4l2Sink::GetCrop(v4l2_crop *crop) {
   crop->type = m_Type;
   if (ioctl(m_Device, VIDIOC_G_CROP, crop))
     return false;
-  Log(LOGDEBUG, "%s::%s - G_CROP type %d crop (%dx%d)", CLASSNAME, __func__, crop->type, crop->c.width, crop->c.height);
+  Log(LOGDEBUG, "%s::%s - G_CROP Device %d, Type %d, crop (%dx%d)", CLASSNAME, __func__, m_Device, crop->type, crop->c.width, crop->c.height);
   return true;
 }
 
 bool CLinuxV4l2Sink::SetCrop(v4l2_crop *crop) {
   crop->type = m_Type;
-  Log(LOGDEBUG, "%s::%s - S_CROP type %d crop (%dx%d)", CLASSNAME, __func__, crop->type, crop->c.width, crop->c.height);
+  Log(LOGDEBUG, "%s::%s - S_CROP Device %d, Type %d, crop (%dx%d)", CLASSNAME, __func__, m_Device, crop->type, crop->c.width, crop->c.height);
   if (ioctl(m_Device, VIDIOC_S_CROP, crop))
     return false;
   return true;
 }
 
 int CLinuxV4l2Sink::RequestBuffers(int buffersCount) {
-  Log(LOGDEBUG, "%s::%s - RequestBuffers %d", CLASSNAME, __func__, buffersCount);
+  Log(LOGDEBUG, "%s::%s - Device %d, Type %d, RequestBuffers %d", CLASSNAME, __func__, m_Device, m_Type, buffersCount);
   struct v4l2_requestbuffers reqbuf;
   memset(&reqbuf, 0, sizeof(struct v4l2_requestbuffers));
   reqbuf.type     = m_Type;
@@ -129,7 +129,7 @@ int CLinuxV4l2Sink::RequestBuffers(int buffersCount) {
   if (ioctl(m_Device, VIDIOC_REQBUFS, &reqbuf))
     return V4L2_ERROR;
 
-  Log(LOGDEBUG, "%s::%s - Buffers allowed %d", CLASSNAME, __func__, reqbuf.count);
+  Log(LOGDEBUG, "%s::%s - Device %d, Type %d, Buffers allowed %d", CLASSNAME, __func__, m_Device, m_Type, reqbuf.count);
   return reqbuf.count;
 }
 
@@ -172,7 +172,7 @@ bool CLinuxV4l2Sink::StreamOn(int state) {
 }
 
 bool CLinuxV4l2Sink::QueueBuffer(v4l2_buffer *buffer) {
-  Log(LOGDEBUG, "%s::%s - Memory %d, Type %d <- %d", CLASSNAME, __func__, buffer->memory, buffer->type, buffer->index);
+  Log(LOGDEBUG, "%s::%s - Device %d, Memory %d, Type %d <- %d", CLASSNAME, __func__, m_Device, buffer->memory, buffer->type, buffer->index);
   if (ioctl(m_Device, VIDIOC_QBUF, buffer))
     return false;
   return true;
@@ -180,7 +180,7 @@ bool CLinuxV4l2Sink::QueueBuffer(v4l2_buffer *buffer) {
 bool CLinuxV4l2Sink::DequeueBuffer(v4l2_buffer *buffer) {
   if (ioctl(m_Device, VIDIOC_DQBUF, buffer))
     return false;
-  Log(LOGDEBUG, "%s::%s - Memory %d, Type %d -> %d", CLASSNAME, __func__, buffer->memory, buffer->type, buffer->index);
+  Log(LOGDEBUG, "%s::%s - Device %d, Memory %d, Type %d -> %d", CLASSNAME, __func__, m_Device, buffer->memory, buffer->type, buffer->index);
   return true;
 }
 

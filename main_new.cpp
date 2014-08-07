@@ -6,6 +6,8 @@
 #include "main_new.h"
 #include "parser.h"
 
+struct in in;
+
 void OpenDevices()
 {
   DIR *dir;
@@ -98,8 +100,64 @@ void OpenDevices()
   return;
 }
 
+bool SetupDevices(char *header, int headerSize) {
+  struct v4l2_format fmt;
+  struct v4l2_crop crop;
+  struct V4l2SinkBuffer iBuffer;
+
+  memzero(fmt);
+  fmt.fmt.pix_mp.pixelformat = V4L2_PIX_FMT_H264;
+  fmt.fmt.pix_mp.plane_fmt[0].sizeimage = STREAM_BUFFER_SIZE;
+
+  iMFCOutput = new CLinuxV4l2Sink(m_iDecoderHandle, V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE);
+  if (!iMFCOutput->Init(&fmt, STREAM_BUFFER_CNT))
+    return false;
+
+  memzero(iBuffer);
+  if (!iMFCOutput->GetBuffer(&iBuffer))
+    return false;
+  iBuffer.iBytesUsed[0] = headerSize;
+  memcpy(iBuffer.cPlane[0], header, headerSize);
+  if (!iMFCOutput->PushBuffer(&iBuffer))
+    return false;
+  iMFCOutput->StreamOn(VIDIOC_STREAMON);
+
+  memzero(fmt);
+  if (m_iConverterHandle < 0)
+    fmt.fmt.pix_mp.pixelformat = V4L2_PIX_FMT_NV12M;
+  iMFCCapture = new CLinuxV4l2Sink(m_iDecoderHandle, V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE);
+  iMFCCapture->Init(&fmt, 0);
+
+  iMFCCapture->QueueAll();
+
+  iMFCCapture->GetCrop(&crop);
+
+  iMFCCapture->StreamOn(VIDIOC_STREAMON);
+
+  if (m_iConverterHandle > -1) {
+    iFIMCOutput = new CLinuxV4l2Sink(m_iConverterHandle, V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE);
+    iFIMCOutput->Init(&fmt, iMFCCapture);
+    iFIMCOutput->SetCrop(&crop);
+    iFIMCOutput->GetCrop(&crop);
+
+    fmt.fmt.pix_mp.pixelformat = V4L2_PIX_FMT_NV12M;
+    iFIMCCapture = new CLinuxV4l2Sink(m_iConverterHandle, V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE);
+    iFIMCCapture->Init(&fmt, 3);
+
+    iFIMCCapture->QueueAll();
+
+    iFIMCOutput->StreamOn(VIDIOC_STREAMON);
+    iFIMCCapture->StreamOn(VIDIOC_STREAMON);
+  }
+
+  return true;
+}
+
 void Cleanup() {
   msg("Starting cleanup");
+
+  munmap(in.p, in.size);
+  close(in.fd);
 
   delete iMFCCapture;
   delete iMFCOutput;
@@ -114,14 +172,13 @@ void intHandler(int dummy=0) {
 
 int main(int argc, char** argv) {
   Parser* parser = NULL;
-  struct in in;
   struct stat in_stat;
   int used, frameSize;
-  v4l2_format *fmt;
-  fmt = new v4l2_format;
-  v4l2_crop *crop;
-  crop = new v4l2_crop;
   struct V4l2SinkBuffer iBuffer;
+  timespec startTs, endTs;
+  int frameNumber = 0;
+  int ret;
+  double dequeuedTimestamp;
 
   signal(SIGINT, intHandler);
 
@@ -162,80 +219,22 @@ int main(int argc, char** argv) {
   (parser->parse_stream)(&parser->ctx, in.p + in.offs, in.size - in.offs, header, STREAM_BUFFER_SIZE, &used, &frameSize, 1);
   msg("Extracted header of size %d", frameSize);
 
-  memzero(*fmt);
-  fmt->fmt.pix_mp.pixelformat = V4L2_PIX_FMT_H264;
-  fmt->fmt.pix_mp.plane_fmt[0].sizeimage = STREAM_BUFFER_SIZE;
-  
-  iMFCOutput = new CLinuxV4l2Sink(m_iDecoderHandle, V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE);
-  if (!iMFCOutput->Init(fmt, STREAM_BUFFER_CNT)) 
+  if (!SetupDevices(header, frameSize))
     return false;
-
-  memzero(iBuffer);
-  if (!iMFCOutput->GetBuffer(&iBuffer))
-    return false;
-  iBuffer.iBytesUsed[0] = frameSize;
-  memcpy(iBuffer.cPlane[0], header, frameSize);
-  if (!iMFCOutput->PushBuffer(&iBuffer))
-    return false;
-  iMFCOutput->StreamOn(VIDIOC_STREAMON);
-
-  memzero(*fmt);
-  if (m_iConverterHandle < 0)
-    fmt->fmt.pix_mp.pixelformat = V4L2_PIX_FMT_NV12M;
-  iMFCCapture = new CLinuxV4l2Sink(m_iDecoderHandle, V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE);
-  iMFCCapture->Init(fmt, 0);
-
-  iMFCCapture->QueueAll();
-
-  iMFCCapture->GetCrop(crop);
-  
-  iMFCCapture->StreamOn(VIDIOC_STREAMON);
-
-  if (m_iConverterHandle > -1) {
-    iFIMCOutput = new CLinuxV4l2Sink(m_iConverterHandle, V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE);
-    iFIMCOutput->Init(fmt, iMFCCapture);
-    iFIMCOutput->SetCrop(crop);
-    iFIMCOutput->GetCrop(crop);
-
-    fmt->fmt.pix_mp.pixelformat = V4L2_PIX_FMT_NV12M;
-    iFIMCCapture = new CLinuxV4l2Sink(m_iConverterHandle, V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE);
-    iFIMCCapture->Init(fmt, 3);
-
-    iFIMCCapture->QueueAll();
-    
-    iFIMCOutput->StreamOn(VIDIOC_STREAMON);
-    iFIMCCapture->StreamOn(VIDIOC_STREAMON);
-  }
-    
-  delete[] header;
-  header = NULL;
-  delete fmt;
-  fmt = NULL;
-  delete crop;
-  crop = NULL;
 
   // Reset the stream to zero position
   memzero(parser->ctx);
 
-
   msg("===START===");
 
   // MAIN LOOP
-  timespec startTs, endTs, tim, tim2;
-  int finish = false;
-  int frameNumber = 0;
-  int frameProcessed = 0;
-  int MFCdequeuedBufferNumber = -1;
-  int FIMCdequeuedBufferNumber = -1;
-  int BufferToShow = -1;
-  int index, ret;
-  double dequeuedTimestamp;
+
+  memzero(iBuffer);
 
   clock_gettime(CLOCK_REALTIME, &startTs);
 
   do {
 
-    memzero(iBuffer);
     if (iMFCOutput->GetBuffer(&iBuffer)) {
       msg("Got buffer %d, filling", iBuffer.iIndex);
       ret = (parser->parse_stream)(&parser->ctx, in.p + in.offs, in.size - in.offs, (char *)iBuffer.cPlane[0], STREAM_BUFFER_SIZE, &used, &frameSize, 0);
@@ -256,13 +255,13 @@ int main(int argc, char** argv) {
         continue;
       else
         break;
-      
+
     if (!iMFCCapture->GetBuffer(&iBuffer))
       if (errno == EAGAIN)
         continue;
       else
         break;
-    
+
     if (m_iConverterHandle > -1) {
       if (!iFIMCOutput->PushBuffer(&iBuffer))
         break;
@@ -276,6 +275,8 @@ int main(int argc, char** argv) {
     msg("Got Buffer plane1 0x%lx, plane2 0x%lx", (unsigned long)iBuffer.cPlane[0], (unsigned long)iBuffer.cPlane[1]);
 
     if (m_iConverterHandle > -1) {
+      if (!iFIMCCapture->PushBuffer(&iBuffer))
+        break;
       if (!iFIMCOutput->GetBuffer(&iBuffer))
         break;
     }
@@ -295,10 +296,6 @@ int main(int argc, char** argv) {
   double fps = (double)frameNumber / seconds;
   msg("Runtime %f sec, fps: %f", seconds, fps);
 
-//Cleanup
-  munmap(in.p, in.size);
-  close(in.fd);
-  
   Cleanup();
   return 0;
 }
