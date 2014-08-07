@@ -1,6 +1,3 @@
-#include <algorithm>    // std::swap
-#include <cstdlib>
-
 #include <linux/videodev2.h>
 
 #include "common.h"
@@ -198,11 +195,11 @@ int main(int argc, char** argv) {
     iFIMCOutput = new CLinuxV4l2Sink(m_iConverterHandle, V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE);
     iFIMCOutput->Init(fmt, iMFCCapture);
     iFIMCOutput->SetCrop(crop);
+    iFIMCOutput->GetCrop(crop);
 
     fmt->fmt.pix_mp.pixelformat = V4L2_PIX_FMT_NV12M;
     iFIMCCapture = new CLinuxV4l2Sink(m_iConverterHandle, V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE);
     iFIMCCapture->Init(fmt, 3);
-    iFIMCCapture->SetCrop(crop);
 
     iFIMCCapture->QueueAll();
     
@@ -234,174 +231,62 @@ int main(int argc, char** argv) {
   int index, ret;
   double dequeuedTimestamp;
 
-  tim.tv_sec = 0;
-  tim.tv_nsec = 20000000L; // 1/50 sec, 50 fps gap
   clock_gettime(CLOCK_REALTIME, &startTs);
 
   do {
-//    nanosleep(&tim , &tim2);
-//    dbg("nanosleep 1/50");
-    memzero(iBuffer);
-    if (!iMFCOutput->GetBuffer(&iBuffer))
-      break;
-    msg("Got buffer %d, filling", iBuffer.iIndex);
-    ret = (parser->parse_stream)(&parser->ctx, in.p + in.offs, in.size - in.offs, (char *)iBuffer.cPlane[0], STREAM_BUFFER_SIZE, &used, &frameSize, 0);
-    if (ret == 0 && in.offs == in.size) {
-      msg("Parser has extracted all frames");
-      parser->finished = true;
-      frameSize = 0;
-    } else {
-      msg("Extracted frame number %d of size %d", frameNumber, frameSize);
-      frameNumber++;
-    }
-    iBuffer.iBytesUsed[0] = frameSize;
-    if (!iMFCOutput->PushBuffer(&iBuffer))
-      break;
 
+    memzero(iBuffer);
+    if (iMFCOutput->GetBuffer(&iBuffer)) {
+      msg("Got buffer %d, filling", iBuffer.iIndex);
+      ret = (parser->parse_stream)(&parser->ctx, in.p + in.offs, in.size - in.offs, (char *)iBuffer.cPlane[0], STREAM_BUFFER_SIZE, &used, &frameSize, 0);
+      if (ret == 0 && in.offs == in.size) {
+        msg("Parser has extracted all frames");
+        parser->finished = true;
+        frameSize = 0;
+      } else {
+        msg("Extracted frame number %d of size %d", frameNumber, frameSize);
+        frameNumber++;
+      }
+      in.offs += used;
+      iBuffer.iBytesUsed[0] = frameSize;
+      if (!iMFCOutput->PushBuffer(&iBuffer))
+        break;
+    } else
+      if (errno == EAGAIN)
+        continue;
+      else
+        break;
+      
     if (!iMFCCapture->GetBuffer(&iBuffer))
       if (errno == EAGAIN)
         continue;
       else
         break;
     
-    msg ("Got buffer %d, plane 1 0x%lx, plane 2 0x%lx", iBuffer.iIndex, (unsigned long)iBuffer.cPlane[0], (unsigned long)iBuffer.cPlane[1]);
+    if (m_iConverterHandle > -1) {
+      if (!iFIMCOutput->PushBuffer(&iBuffer))
+        break;
+      if (!iFIMCCapture->GetBuffer(&iBuffer))
+        if (errno == EAGAIN)
+          continue;
+        else
+          break;
+    }
+
+    msg("Got Buffer plane1 0x%lx, plane2 0x%lx", (unsigned long)iBuffer.cPlane[0], (unsigned long)iBuffer.cPlane[1]);
+
+    if (m_iConverterHandle > -1) {
+      if (!iFIMCOutput->GetBuffer(&iBuffer))
+        break;
+    }
 
     if (!iMFCCapture->PushBuffer(&iBuffer))
       break;
 
   } while (!parser->finished);
 
-  msg("errno: %d", errno);
-
-/*
-  do {
-    //nanosleep(&tim , &tim2);
-    //dbg("nanosleep 1/30");
-
-    index = 0;
-    if (!parser->finished) {
-      while (index < m_MFCOutputBuffersCount & m_v4l2MFCOutputBuffers[index].bQueue)
-        index++;
-
-      if (index >= m_MFCOutputBuffersCount) { //all input buffers are busy, dequeue needed
-        ret = CLinuxV4l2::PollOutput(m_iDecoderHandle, 1000/20); // wait a 20fps gap for buffer to deqeue. POLLIN - Poll Capture, POLLOUT - Poll Output
-        if (ret == V4L2_ERROR) {
-          err("\e[1;32mMFC OUTPUT\e[0m PollInput Error");
-          break;
-        } else if (ret == V4L2_BUSY) {
-          index = -1; //MFC is so busy it is not ready to recieve one more frame
-          err("\e[1;32mMFC OUTPUT\e[0m buffer is BUSY");
-        } else if (ret == V4L2_READY) {
-          index = CLinuxV4l2::DequeueBuffer(m_iDecoderHandle, V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE, V4L2_MEMORY_MMAP, &dequeuedTimestamp);
-          if (index < 0) {
-            err("\e[1;32mMFC OUTPUT\e[0m error dequeue output buffer, got number %d, errno %d", index, errno);
-            break;
-          } else {
-            dbg("\e[1;32mMFC OUTPUT\e[0m -> %d", index);
-            m_v4l2MFCOutputBuffers[index].bQueue = false;
-          }
-        } else {
-          err("\e[1;32mMFC OUTPUT\e[0m What the fuck is that? %d, %d", ret, errno);
-          break;
-        }
-      }
-
-      if (index >= 0) { //We have a buffer to write to
-        // Parse frame, copy it to buffer
-        ret = (parser->parse_stream)(&parser->ctx, in.p + in.offs, in.size - in.offs, (char *) m_v4l2MFCOutputBuffers[index].cPlane[0], STREAM_BUFFER_SIZE, &used, &frameSize, 0);
-        if (ret == 0 && in.offs == in.size) {
-          msg("Parser has extracted all frames");
-          parser->finished = true;
-          frameSize = 0;
-        } else {
-          frameNumber++;
-          msg("Extracted frame number %d of size %d", frameNumber, frameSize);
-        }
-        m_v4l2MFCOutputBuffers[index].iBytesUsed[0] = frameSize;
-
-        // Queue buffer into MFC OUTPUT queue
-        ret = CLinuxV4l2::QueueBuffer(m_iDecoderHandle, V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE, V4L2_MEMORY_MMAP, &m_v4l2MFCOutputBuffers[index]);
-        if (ret == V4L2_ERROR) {
-          err("\e[1;32mMFC OUTPUT\e[0m Failed to queue buffer with index %d, errno %d", index, errno);
-          break;
-        } else
-          dbg("\e[1;32mMFC OUTPUT\e[0m %d <-", index);
-        in.offs += used;
-      }
-    }
-
-    MFCdequeuedBufferNumber = CLinuxV4l2::DequeueBuffer(m_iDecoderHandle, V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE, V4L2_MEMORY_MMAP, &dequeuedTimestamp);
-    if (MFCdequeuedBufferNumber < 0) {
-      if (errno == EAGAIN) // Dequeue buffer not ready, need more data on input. EAGAIN = 11
-        continue;
-      err("\e[1;32mMFC CAPTURE\e[0m error dequeue output buffer, got number %d", MFCdequeuedBufferNumber);
-      break;
-    } else {
-      dbg("\e[1;32mMFC CAPTURE\e[0m -> %d", MFCdequeuedBufferNumber);
-      m_v4l2MFCCaptureBuffers[MFCdequeuedBufferNumber].bQueue = false;
-    }
-
-#ifdef USE_FIMC
-//Process frame after mfc
-    ret = CLinuxV4l2::QueueBuffer(m_iConverterHandle, V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE, V4L2_MEMORY_USERPTR, &m_v4l2MFCCaptureBuffers[MFCdequeuedBufferNumber]);
-    if (ret == V4L2_ERROR) {
-      err("\e[1;33mVIDEO\e[0m Failed to queue buffer with index %d", MFCdequeuedBufferNumber);
-      break;
-    }
-    dbg("\e[1;31mFIMC OUTPUT\e[0m %d <-", ret);
-
-    FIMCdequeuedBufferNumber = CLinuxV4l2::DequeueBuffer(m_iConverterHandle, V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE, V4L2_MEMORY_USERPTR, &dequeuedTimestamp);
-    if (FIMCdequeuedBufferNumber < 0) {
-      if (errno == EAGAIN) // Dequeue buffer not ready, need more data on input. EAGAIN = 11
-        continue;
-      err("\e[1;31mFIMC CAPTURE\e[0m error dequeue output buffer, got number %d", FIMCdequeuedBufferNumber);
-      break;
-    }
-    dbg("\e[1;31mFIMC CAPTURE\e[0m -> %d", FIMCdequeuedBufferNumber);
-    m_v4l2FIMCCaptureBuffers[FIMCdequeuedBufferNumber].bQueue = false;
-    frameProcessed++;
-
-    index = CLinuxV4l2::DequeueBuffer(m_iConverterHandle, V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE, V4L2_MEMORY_USERPTR, &dequeuedTimestamp);
-    if (index < 0) {
-      if (errno == EAGAIN) // Dequeue buffer not ready, need more data on input. EAGAIN = 11
-        continue;
-      err("\e[1;31mFIMC OUTPUT\e[0m error dequeue output buffer, got number %d", index);
-      break;
-    } else {
-      dbg("\e[1;31mFIMC OUTPUT\e[0m -> %d", index);
-      m_v4l2MFCCaptureBuffers[index].bQueue = false;
-    }
-#else
-    index = MFCdequeuedBufferNumber;
-#endif
-
-    ret = CLinuxV4l2::QueueBuffer(m_iDecoderHandle, V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE, V4L2_MEMORY_MMAP, &m_v4l2MFCCaptureBuffers[index]);
-    if (ret == V4L2_ERROR) {
-      err("\e[1;32mMFC CAPTURE\e[0m Failed to queue buffer with index %d, errno = %d", index, errno);
-      break;
-    } else
-      dbg("\e[1;32mMFC CAPTURE\e[0m %d <-", ret);
-
-#ifdef USE_FIMC
-    std::swap(BufferToShow,FIMCdequeuedBufferNumber);
-
-    ret = drmModeSetCrtc(m_iVideoHandle, modeset_list->crtc, modeset_list->bufs[BufferToShow].fb, 0, 0, &modeset_list->conn, 1, &modeset_list->mode);
-    if (ret)
-      err("\e[1;30mDRM\e[0m cannot flip CRTC for connector %u (%d)", modeset_list->conn, errno);
-    msg("\e[1;33mDRM\e[0m Shown buffer %d", BufferToShow);
-
-    if (FIMCdequeuedBufferNumber >=0) {
-      ret = CLinuxV4l2::QueueBuffer(m_iConverterHandle, V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE, V4L2_MEMORY_USERPTR, &m_v4l2FIMCCaptureBuffers[FIMCdequeuedBufferNumber]);
-      if (ret == V4L2_ERROR) {
-        err("\e[1;31mFIMC CAPTURE\e[0m Failed to queue buffer with index %d, errno = %d", FIMCdequeuedBufferNumber, errno);
-        break;
-      } else
-        dbg("\e[1;31mFIMC CAPTURE\e[0m %d <-", ret);
-    }
-#endif
-
-  } while (!parser->finished);
-*/
+  if (!parser->finished)
+    msg("errno: %d", errno);
 
   msg("===STOP===");
 
