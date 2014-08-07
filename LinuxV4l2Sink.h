@@ -21,6 +21,7 @@
  */
 
 #include <queue>
+#include <poll.h>
 #include <linux/videodev2.h>
 
 #ifndef V4L2_BUF_FLAG_TIMESTAMP_COPY
@@ -64,6 +65,7 @@ public:
   bool PushBuffer(V4l2SinkBuffer* buffer);
   bool StreamOn(int state);
   bool QueueAll();
+  int Poll(int timeout);
 private:
   int m_Device;
   int m_NumPlanes;
