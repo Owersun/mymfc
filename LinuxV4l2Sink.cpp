@@ -91,10 +91,13 @@ bool CLinuxV4l2Sink::GetFormat(v4l2_format *format) {
 }
 
 bool CLinuxV4l2Sink::SetFormat(v4l2_format *format) {
+  if (format->fmt.pix_mp.pixelformat == 0)
+    return false;
   Log(LOGDEBUG, "%s::%s - S_FMT format 0x%x buffer size=%u", CLASSNAME, __func__, format->fmt.pix_mp.pixelformat, format->fmt.pix_mp.plane_fmt[0].sizeimage);
   format->type = m_Type;
   if (ioctl(m_Device, VIDIOC_S_FMT, format))
     return false;
+  Log(LOGDEBUG, "%s::%s - S_FMT format 0x%x buffer size=%u", CLASSNAME, __func__, format->fmt.pix_mp.pixelformat, format->fmt.pix_mp.plane_fmt[0].sizeimage);
   return true;
 }
 
@@ -164,18 +167,18 @@ bool CLinuxV4l2Sink::MmapBuffers() {
 bool CLinuxV4l2Sink::StreamOn(int state) {
   if(ioctl(m_Device, state, &m_Type))
     return false;
-  Log(LOGDEBUG, "%s::%s - Streamon %d", CLASSNAME, __func__, state);
+  Log(LOGDEBUG, "%s::%s - %d", CLASSNAME, __func__, state);
   return true;
 }
 
 bool CLinuxV4l2Sink::QueueBuffer(v4l2_buffer *buffer) {
-  Log(LOGDEBUG, "%s::%s - QueueBuffer %d", CLASSNAME, __func__, buffer->index);
+  Log(LOGDEBUG, "%s::%s - %d, Memory, %d, Type %d", CLASSNAME, __func__, buffer->index, buffer->memory, buffer->type);
   if (ioctl(m_Device, VIDIOC_QBUF, buffer))
     return false;
   return true;
 }
 bool CLinuxV4l2Sink::DequeueBuffer(v4l2_buffer *buffer) {
-  Log(LOGDEBUG, "%s::%s - DequeueBuffer", CLASSNAME, __func__);
+  Log(LOGDEBUG, "%s::%s - Memory %d, Type %d", CLASSNAME, __func__, buffer->memory, buffer->type);
   if (ioctl(m_Device, VIDIOC_DQBUF, buffer))
     return false;
   return true;
@@ -206,7 +209,7 @@ bool CLinuxV4l2Sink::GetBuffer(V4l2SinkBuffer *buffer) {
 }
 
 bool CLinuxV4l2Sink::PushBuffer(V4l2SinkBuffer *buffer) {
-  if (m_Memory = V4L2_MEMORY_USERPTR)
+  if (m_Memory == V4L2_MEMORY_USERPTR)
     for (int i = 0; i < m_NumPlanes; i++)
       m_Buffers[buffer->iIndex].m.planes[i].m.userptr = (long unsigned int)buffer->cPlane[i];
 

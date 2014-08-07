@@ -183,7 +183,8 @@ int main(int argc, char** argv) {
   iMFCOutput->StreamOn(VIDIOC_STREAMON);
 
   memzero(*fmt);
-  fmt->fmt.pix_mp.pixelformat = V4L2_PIX_FMT_NV12MT;
+  if (m_iConverterHandle < 0)
+    fmt->fmt.pix_mp.pixelformat = V4L2_PIX_FMT_NV12M;
   iMFCCapture = new CLinuxV4l2Sink(m_iDecoderHandle, V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE);
   iMFCCapture->Init(fmt, 0);
 
@@ -236,29 +237,42 @@ int main(int argc, char** argv) {
   tim.tv_sec = 0;
   tim.tv_nsec = 20000000L; // 1/50 sec, 50 fps gap
   clock_gettime(CLOCK_REALTIME, &startTs);
-/*
+
   do {
-    nanosleep(&tim , &tim2);
-    dbg("nanosleep 1/50");
+//    nanosleep(&tim , &tim2);
+//    dbg("nanosleep 1/50");
     memzero(iBuffer);
     if (!iMFCOutput->GetBuffer(&iBuffer))
       break;
-    ret = (parser->parse_stream)(&parser->ctx, in.p + in.offs, in.size - in.offs, (char *) iBuffer.cPlane[0], STREAM_BUFFER_SIZE, &used, &frameSize, 0);
+    msg("Got buffer %d, filling", iBuffer.iIndex);
+    ret = (parser->parse_stream)(&parser->ctx, in.p + in.offs, in.size - in.offs, (char *)iBuffer.cPlane[0], STREAM_BUFFER_SIZE, &used, &frameSize, 0);
     if (ret == 0 && in.offs == in.size) {
       msg("Parser has extracted all frames");
       parser->finished = true;
       frameSize = 0;
     } else {
-      frameNumber++;
       msg("Extracted frame number %d of size %d", frameNumber, frameSize);
+      frameNumber++;
     }
     iBuffer.iBytesUsed[0] = frameSize;
     if (!iMFCOutput->PushBuffer(&iBuffer))
       break;
+
+    if (!iMFCCapture->GetBuffer(&iBuffer))
+      if (errno == EAGAIN)
+        continue;
+      else
+        break;
+    
+    msg ("Got buffer %d, plane 1 0x%lx, plane 2 0x%lx", iBuffer.iIndex, (unsigned long)iBuffer.cPlane[0], (unsigned long)iBuffer.cPlane[1]);
+
+    if (!iMFCCapture->PushBuffer(&iBuffer))
+      break;
+
   } while (!parser->finished);
 
   msg("errno: %d", errno);
-*/
+
 /*
   do {
     //nanosleep(&tim , &tim2);
