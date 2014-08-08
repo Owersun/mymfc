@@ -278,7 +278,7 @@ int main(int argc, char** argv) {
           break;
     }
 
-    msg("Got Buffer plane1 0x%lx, plane2 0x%lx", (unsigned long)iBuffer.cPlane[0], (unsigned long)iBuffer.cPlane[1]);
+    msg("Got Buffer plane1 0x%lx, plane2 0x%lx from buffer %d", (unsigned long)iBuffer.cPlane[0], (unsigned long)iBuffer.cPlane[1], iBuffer.iIndex);
 
     if (m_iConverterHandle > -1) {
       if (!iFIMCCapture->PushBuffer(&iBuffer))
