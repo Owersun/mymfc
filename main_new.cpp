@@ -125,6 +125,7 @@ bool SetupDevices(char *header, int headerSize) {
   memzero(fmt);
   if (m_iConverterHandle < 0)
     fmt.fmt.pix_mp.pixelformat = V4L2_PIX_FMT_NV12M;
+  fmt.fmt.pix_mp.field = V4L2_FIELD_ANY;
   iMFCCapture = new CLinuxV4l2Sink(m_iDecoderHandle, V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE);
   iMFCCapture->Init(&fmt, 0);
 
@@ -140,11 +141,18 @@ bool SetupDevices(char *header, int headerSize) {
     iFIMCOutput->SetCrop(&crop);
     iFIMCOutput->GetCrop(&crop);
 
+    memzero(fmt);
     fmt.fmt.pix_mp.pixelformat = V4L2_PIX_FMT_NV12M;
+    fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
+    fmt.fmt.pix_mp.width = crop.c.width;
+    fmt.fmt.pix_mp.height = crop.c.height;
+    fmt.fmt.pix_mp.field = V4L2_FIELD_ANY;
     iFIMCCapture = new CLinuxV4l2Sink(m_iConverterHandle, V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE);
     iFIMCCapture->Init(&fmt, OUTPUT_BUFFERS);
 
     iFIMCCapture->QueueAll();
+
+    iFIMCCapture->GetCrop(&crop);
 
     iFIMCOutput->StreamOn(VIDIOC_STREAMON);
     iFIMCCapture->StreamOn(VIDIOC_STREAMON);

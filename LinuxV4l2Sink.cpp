@@ -22,9 +22,9 @@ CLinuxV4l2Sink::~CLinuxV4l2Sink() {
   if (m_Memory == V4L2_MEMORY_MMAP)
     for (int i = 0; i < m_NumBuffers*m_NumPlanes; i++)
       if(m_Addresses[i] != (unsigned long)MAP_FAILED)
-        if (munmap((void *)m_Addresses[i], m_Planes[i].length) == 0)
-          Log(LOGDEBUG, "%s::%s - Munmapped Plane %d size %u at 0x%lx", CLASSNAME, __func__, i, m_Planes[i].length, m_Addresses[i]);
-
+        if (munmap((void *)m_Addresses[i], m_Planes[i].length) == 0) {
+//        Log(LOGDEBUG, "%s::%s - Munmapped Plane %d size %u at 0x%lx", CLASSNAME, __func__, i, m_Planes[i].length, m_Addresses[i]);
+        }
   if (m_Planes)
     delete[] m_Planes;
   if (m_Buffers)
@@ -94,7 +94,7 @@ bool CLinuxV4l2Sink::SetFormat(v4l2_format *format) {
   format->type = m_Type;
   if (format->fmt.pix_mp.pixelformat == 0)
     return false;
-  Log(LOGDEBUG, "%s::%s - S_FMT Device %d, Type %d format 0x%x buffer size=%u", CLASSNAME, __func__, m_Device, format->type, format->fmt.pix_mp.pixelformat, format->fmt.pix_mp.plane_fmt[0].sizeimage);
+  Log(LOGDEBUG, "%s::%s - S_FMT Device %d, Type %d format 0x%x (%dx%d), plane[0]=%d plane[1]=%d", CLASSNAME, __func__, m_Device, format->type, format->fmt.pix_mp.pixelformat, format->fmt.pix_mp.width, format->fmt.pix_mp.height, format->fmt.pix_mp.plane_fmt[0].sizeimage, format->fmt.pix_mp.plane_fmt[1].sizeimage);
   format->type = m_Type;
   if (ioctl(m_Device, VIDIOC_S_FMT, format))
     return false;
@@ -158,7 +158,7 @@ bool CLinuxV4l2Sink::MmapBuffers() {
       m_Addresses[i] = (unsigned long)mmap(NULL, m_Planes[i].length, PROT_READ | PROT_WRITE, MAP_SHARED, m_Device, m_Planes[i].m.mem_offset);
       if (m_Addresses[i] == (unsigned long)MAP_FAILED)
         return false;
-      Log(LOGDEBUG, "%s::%s - MMapped Plane %d at 0x%x in device to address 0x%lx", CLASSNAME, __func__, i, m_Planes[i].m.mem_offset, m_Addresses[i]);
+//    Log(LOGDEBUG, "%s::%s - MMapped Plane %d at 0x%x in device to address 0x%lx", CLASSNAME, __func__, i, m_Planes[i].m.mem_offset, m_Addresses[i]);
     }
   }
   return true;
@@ -167,7 +167,7 @@ bool CLinuxV4l2Sink::MmapBuffers() {
 bool CLinuxV4l2Sink::StreamOn(int state) {
   if(ioctl(m_Device, state, &m_Type))
     return false;
-  Log(LOGDEBUG, "%s::%s - %d", CLASSNAME, __func__, state);
+  Log(LOGDEBUG, "%s::%s - Device %d, Type %d, %d", CLASSNAME, __func__, m_Device, m_Type, state);
   return true;
 }
 
