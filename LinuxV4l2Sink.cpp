@@ -184,27 +184,34 @@ bool CLinuxV4l2Sink::DequeueBuffer(v4l2_buffer *buffer) {
   return true;
 }
 
-bool CLinuxV4l2Sink::GetBuffer(V4l2SinkBuffer *buffer) {
-  int bufIndex;
+bool CLinuxV4l2Sink::DequeueBuffer(V4l2SinkBuffer *buffer) {
+  struct v4l2_buffer buf;
+  struct v4l2_plane  planes[m_NumPlanes];
+  memset(&planes, 0, sizeof(struct v4l2_plane) * m_NumPlanes);
+  memset(&buf, 0, sizeof(struct v4l2_buffer));
+  buf.type     = m_Type;
+  buf.memory   = m_Memory;
+  buf.m.planes = planes;
+  buf.length   = m_NumPlanes;
+  if (!DequeueBuffer(&buf))
+    return false;
 
-  if (iFreeBuffers.empty()) {
-    struct v4l2_buffer buf;
-    struct v4l2_plane  planes[m_NumPlanes];
-    memset(&planes, 0, sizeof(struct v4l2_plane) * m_NumPlanes);
-    memset(&buf, 0, sizeof(struct v4l2_buffer));
-    buf.type     = m_Type;
-    buf.memory   = m_Memory;
-    buf.m.planes = planes;
-    buf.length   = m_NumPlanes;
-    if (!DequeueBuffer(&buf))
-      return false;
-    iFreeBuffers.push(buf.index);
-  }
-
-  buffer->iIndex = iFreeBuffers.front();
-  iFreeBuffers.pop();
+  buffer->iIndex = buf.index;
   for (int i = 0; i < m_NumPlanes; i++)
     buffer->cPlane[i] = (void *)m_Addresses[buffer->iIndex * m_NumPlanes + i];
+  return true;
+}
+
+bool CLinuxV4l2Sink::GetBuffer(V4l2SinkBuffer *buffer) {
+  if (iFreeBuffers.empty()) {
+    if (!DequeueBuffer(buffer))
+      return false;
+  } else {
+    buffer->iIndex = iFreeBuffers.front();
+    iFreeBuffers.pop();
+    for (int i = 0; i < m_NumPlanes; i++)
+      buffer->cPlane[i] = (void *)m_Addresses[buffer->iIndex * m_NumPlanes + i];
+  }
   return true;
 }
 

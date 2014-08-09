@@ -290,7 +290,7 @@ int main(int argc, char** argv) {
     if (m_iConverterHandle > -1) {
       if (!iFIMCCapture->PushBuffer(&iBuffer))
         break;
-      if (!iFIMCOutput->GetBuffer(&iBuffer))
+      if (!iFIMCOutput->DequeueBuffer(&iBuffer))
         break;
     }
 

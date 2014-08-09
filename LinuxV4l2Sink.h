@@ -62,6 +62,7 @@ public:
   bool GetCrop(v4l2_crop *crop);
   bool SetCrop(v4l2_crop *crop);
   bool GetBuffer(V4l2SinkBuffer* buffer);
+  bool DequeueBuffer(V4l2SinkBuffer* buffer);
   bool PushBuffer(V4l2SinkBuffer* buffer);
   bool StreamOn(int state);
   bool QueueAll();
