@@ -237,9 +237,16 @@ int main(int argc, char** argv) {
 
   memzero(iBuffer);
 
+  timespec tim, tim2;
+  tim.tv_sec = 0;
+  tim.tv_nsec = 16666666L;
+
   clock_gettime(CLOCK_REALTIME, &startTs);
 
   do {
+
+    nanosleep(&tim , &tim2);
+    dbg("nanosleep 1/60");
 
     if (iMFCOutput->GetBuffer(&iBuffer)) {
       msg("Got buffer %d, filling", iBuffer.iIndex);
