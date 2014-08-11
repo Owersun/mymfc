@@ -263,7 +263,7 @@ int main(int argc, char** argv) {
       iBuffer.iBytesUsed[0] = frameSize;
       if (!iMFCOutput->PushBuffer(&iBuffer))
         break;
-    } else {
+    } else
       if (errno != EAGAIN)
         break;
 
