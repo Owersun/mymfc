@@ -121,11 +121,12 @@ bool SetupDevices(char *header, int headerSize) {
   if (!iMFCOutput->PushBuffer(&iBuffer))
     return false;
 
+  iMFCOutput->StreamOn(VIDIOC_STREAMON);
+
   memzero(fmt);
   if (m_iConverterHandle < 0)
     fmt.fmt.pix_mp.pixelformat = V4L2_PIX_FMT_NV12M;
   iMFCCapture = new CLinuxV4l2Sink(m_iDecoderHandle, V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE);
-  iMFCOutput->StreamOn(VIDIOC_STREAMON);
   if (!iMFCCapture->Init(&fmt, 0))
     return false;
 
