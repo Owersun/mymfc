@@ -37,8 +37,10 @@ CLinuxV4l2Sink::~CLinuxV4l2Sink() {
 bool CLinuxV4l2Sink::Init(v4l2_format *format, int buffersCount = 0) {
   Log(LOGDEBUG, "%s::%s - Init MMAP %d buffers", CLASSNAME, __func__, buffersCount);
   m_Memory = V4L2_MEMORY_MMAP;
-  SetFormat(format);
-  GetFormat(format);
+  if (!SetFormat(format))
+    return false;
+  if (!GetFormat(format))
+    return false;
 
   if (buffersCount == 0 && m_Type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
     struct v4l2_control ctrl;
@@ -54,16 +56,20 @@ bool CLinuxV4l2Sink::Init(v4l2_format *format, int buffersCount = 0) {
   m_Buffers = new v4l2_buffer[m_NumBuffers];
   m_Planes = new v4l2_plane[m_NumPlanes * m_NumBuffers];
   m_Addresses = new unsigned long[m_NumPlanes * m_NumBuffers];
-  QueryBuffers();
-  MmapBuffers();
+  if (!QueryBuffers())
+    return false;
+  if (!MmapBuffers())
+    return false;
   return true;
 }
 // Init for USERPTR buffers
 bool CLinuxV4l2Sink::Init(v4l2_format *format, CLinuxV4l2Sink *sink) {
   Log(LOGDEBUG, "%s::%s - Init UserPTR", CLASSNAME, __func__);
   m_Memory = V4L2_MEMORY_USERPTR;
-  SetFormat(format);
-  GetFormat(format);
+  if (!SetFormat(format))
+    return false;
+  if (!GetFormat(format))
+    return false;
 
   m_NumBuffers = sink->m_NumBuffers;
   m_NumBuffers = RequestBuffers(m_NumBuffers);
@@ -72,7 +78,8 @@ bool CLinuxV4l2Sink::Init(v4l2_format *format, CLinuxV4l2Sink *sink) {
   m_Buffers = new v4l2_buffer[m_NumBuffers];
   m_Planes = new v4l2_plane[m_NumPlanes * m_NumBuffers];
   m_Addresses = new unsigned long[m_NumPlanes * m_NumBuffers];
-  QueryBuffers();
+  if (!QueryBuffers())
+    return false;
   for (int i = 0; i < m_NumPlanes * m_NumBuffers; i++) {
     m_Addresses[i] = sink->m_Addresses[i];
     m_Planes[i].m.userptr = m_Addresses[i];
@@ -93,7 +100,7 @@ bool CLinuxV4l2Sink::GetFormat(v4l2_format *format) {
 bool CLinuxV4l2Sink::SetFormat(v4l2_format *format) {
   format->type = m_Type;
   if (format->fmt.pix_mp.pixelformat == 0)
-    return false;
+    return true;
   Log(LOGDEBUG, "%s::%s - S_FMT Device %d, Type %d format 0x%x (%dx%d), plane[0]=%d plane[1]=%d", CLASSNAME, __func__, m_Device, format->type, format->fmt.pix_mp.pixelformat, format->fmt.pix_mp.width, format->fmt.pix_mp.height, format->fmt.pix_mp.plane_fmt[0].sizeimage, format->fmt.pix_mp.plane_fmt[1].sizeimage);
   format->type = m_Type;
   if (ioctl(m_Device, VIDIOC_S_FMT, format))
