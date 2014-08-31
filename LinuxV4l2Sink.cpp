@@ -204,6 +204,7 @@ bool CLinuxV4l2Sink::DequeueBuffer(V4l2SinkBuffer *buffer) {
     return false;
 
   buffer->iIndex = buf.index;
+  buffer->iTimeStamp = buf.timestamp;
   for (int i = 0; i < m_NumPlanes; i++)
     buffer->cPlane[i] = (void *)m_Addresses[buffer->iIndex * m_NumPlanes + i];
   return true;
@@ -215,6 +216,7 @@ bool CLinuxV4l2Sink::GetBuffer(V4l2SinkBuffer *buffer) {
       return false;
   } else {
     buffer->iIndex = iFreeBuffers.front();
+    buffer->iTimeStamp = m_Buffers[buffer->iIndex].timestamp;
     iFreeBuffers.pop();
     for (int i = 0; i < m_NumPlanes; i++)
       buffer->cPlane[i] = (void *)m_Addresses[buffer->iIndex * m_NumPlanes + i];
@@ -226,6 +228,9 @@ bool CLinuxV4l2Sink::PushBuffer(V4l2SinkBuffer *buffer) {
   if (m_Memory == V4L2_MEMORY_USERPTR)
     for (int i = 0; i < m_NumPlanes; i++)
       m_Buffers[buffer->iIndex].m.planes[i].m.userptr = (long unsigned int)buffer->cPlane[i];
+
+  m_Buffers[buffer->iIndex].timestamp = buffer->iTimeStamp;
+  m_Buffers[buffer->iIndex].flags |= V4L2_BUF_FLAG_TIMESTAMP_COPY;
 
   for (int i = 0; i < m_NumPlanes; i++)
     m_Buffers[buffer->iIndex].m.planes[i].bytesused = buffer->iBytesUsed[i];

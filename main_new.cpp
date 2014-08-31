@@ -269,6 +269,11 @@ int main(int argc, char** argv) {
       }
       in.offs += used;
       iBuffer.iBytesUsed[0] = frameSize;
+/*
+      long* pts = (long*)&buffer->timestamp;
+      iBuffer.iTimeStamp.tv_sec = pts[0];
+      iBuffer.iTimeStamp.tv_usec = pts[1];
+*/
       if (!iMFCOutput->PushBuffer(&iBuffer))
         break;
     } else
@@ -290,7 +295,10 @@ int main(int argc, char** argv) {
         else
           break;
     }
-
+/*
+    long pts[2] = { iBuffer.iTimeStamp.tv_sec, iBuffer.iTimeStamp.tv_usec };
+    *dequeuedTimestamp = *((double*)&pts[0]);;
+*/
     msg("Got Buffer plane1 0x%lx, plane2 0x%lx from buffer %d", (unsigned long)iBuffer.cPlane[0], (unsigned long)iBuffer.cPlane[1], iBuffer.iIndex);
 
     if (m_iConverterHandle > -1) {

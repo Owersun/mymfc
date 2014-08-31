@@ -46,7 +46,7 @@ typedef struct V4l2SinkBuffer
   int   iIndex;
   int   iBytesUsed[4];
   void  *cPlane[4];
-  double iTimestamp;
+  struct timeval iTimeStamp;
 } V4l2SinkBuffer;
 
 class CLinuxV4l2Sink
