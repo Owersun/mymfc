@@ -55,8 +55,8 @@ public:
   CLinuxV4l2Sink(int fd, enum v4l2_buf_type type);
   ~CLinuxV4l2Sink();
 
-  bool Init(v4l2_format *format, int buffersCount);
-  bool Init(v4l2_format *format, CLinuxV4l2Sink *sink);
+  bool Init(int buffersCount);
+  bool Init(CLinuxV4l2Sink *sink);
   bool GetFormat(v4l2_format *format);
   bool SetFormat(v4l2_format *format);
   bool GetCrop(v4l2_crop *crop);

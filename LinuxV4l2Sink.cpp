@@ -34,12 +34,12 @@ CLinuxV4l2Sink::~CLinuxV4l2Sink() {
 }
 
 // Init for MMAP buffers
-bool CLinuxV4l2Sink::Init(v4l2_format *format, int buffersCount = 0) {
+bool CLinuxV4l2Sink::Init(int buffersCount = 0) {
   Log(LOGDEBUG, "%s::%s - Init MMAP %d buffers", CLASSNAME, __func__, buffersCount);
   m_Memory = V4L2_MEMORY_MMAP;
-  if (!SetFormat(format))
-    return false;
-  if (!GetFormat(format))
+
+  struct v4l2_format format;
+  if (!GetFormat(&format))
     return false;
 
   if (buffersCount == 0 && m_Type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
@@ -63,12 +63,12 @@ bool CLinuxV4l2Sink::Init(v4l2_format *format, int buffersCount = 0) {
   return true;
 }
 // Init for USERPTR buffers
-bool CLinuxV4l2Sink::Init(v4l2_format *format, CLinuxV4l2Sink *sink) {
+bool CLinuxV4l2Sink::Init(CLinuxV4l2Sink *sink) {
   Log(LOGDEBUG, "%s::%s - Init UserPTR", CLASSNAME, __func__);
   m_Memory = V4L2_MEMORY_USERPTR;
-  if (!SetFormat(format))
-    return false;
-  if (!GetFormat(format))
+
+  struct v4l2_format format;
+  if (!GetFormat(&format))
     return false;
 
   m_NumBuffers = sink->m_NumBuffers;
