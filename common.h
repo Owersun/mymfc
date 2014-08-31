@@ -24,6 +24,10 @@
 #define LOGFATAL   6
 #define LOGNONE    7
 
+#ifndef V4L2_CAP_VIDEO_M2M_MPLANE
+  #define V4L2_CAP_VIDEO_M2M_MPLANE 0x00004000
+#endif
+
 #define err(msg, ...) \
   fprintf(stderr, "Error (%s:%s:%d): " msg "\n", __FILE__, __func__, __LINE__, ##__VA_ARGS__)
 #define dbg(msg, ...) \
@@ -34,3 +38,4 @@
   fprintf(stdout, "%d " msg "\n", level, ##__VA_ARGS__)
 
 #define memzero(x) memset(&(x), 0, sizeof (x))
+
