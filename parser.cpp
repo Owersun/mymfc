@@ -52,7 +52,7 @@ ParserMpeg2::~ParserMpeg2() {
 int Parser::parse_stream_init(mfc_parser_context *ctx)
 {
 	if (!ctx) {
-		err("ctx is NULL");
+		CLog::Log(LOGERROR, "%s::%s - ctx is NULL", CLASSNAME, __func__);
 		return -1;
 	}
 	memzero(*ctx);
@@ -200,7 +200,7 @@ int ParserMpeg4::parse_stream(
 
 	if (ctx->got_start) {
   		if (out_size < frame_length) {
-			err("Output buffer too small for current frame");
+			CLog::Log(LOGERROR, "%s::%s - Output buffer too small for current frame", CLASSNAME, __func__);
 			return 0;
 		}
 		memcpy(out, in, frame_length);
@@ -366,7 +366,7 @@ int ParserH264::parse_stream(
 
 	if (ctx->got_start) {
 		if (out_size < frame_length) {
-			err("Output buffer too small for current frame");
+			CLog::Log(LOGERROR, "%s::%s - Output buffer too small for current frame", CLASSNAME, __func__);
 			return 0;
 		}
 		memcpy(out, in, frame_length);
@@ -443,12 +443,12 @@ int ParserMpeg2::parse_stream(
 				ctx->state = MPEG4_PARSER_NO_CODE;
 				ctx->last_tag = MPEG4_TAG_HEAD;
 				ctx->headers_count++;
-				dbg("Found header at %d (%x)", *consumed, *consumed);
+				CLog::Log(LOGDEBUG, "%s::%s - Found header at %d (%x)", CLASSNAME, __func__, *consumed, *consumed);
 			} else if (*in == 0x00) {
 				ctx->state = MPEG4_PARSER_NO_CODE;
 				ctx->last_tag = MPEG4_TAG_VOP;
 				ctx->main_count++;
-				dbg("Found picture at %d (%x)", *consumed, *consumed);
+				CLog::Log(LOGDEBUG, "%s::%s - Found picture at %d (%x)", CLASSNAME, __func__, *consumed, *consumed);
 			} else
 				ctx->state = MPEG4_PARSER_NO_CODE;
 			break;
@@ -514,7 +514,7 @@ int ParserMpeg2::parse_stream(
 
 	if (ctx->got_start) {
 		if (out_size < frame_length) {
-			err("Output buffer too small for current frame");
+			CLog::Log(LOGERROR, "%s::%s - Output buffer too small for current frame", CLASSNAME, __func__);
 			return 0;
 		}
 

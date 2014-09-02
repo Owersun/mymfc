@@ -7,7 +7,7 @@
 #define CLASSNAME "CLinuxV4l2Sink"
 
 CLinuxV4l2Sink::CLinuxV4l2Sink(int fd, enum v4l2_buf_type type) {
-  Log(LOGDEBUG, "%s::%s - Creating Sink, Device %d, Type %d", CLASSNAME, __func__, fd, type);
+  CLog::Log(LOGDEBUG, "%s::%s - Creating Sink, Device %d, Type %d", CLASSNAME, __func__, fd, type);
   m_Device = fd;
   m_Type = type;
   m_Buffers = NULL;
@@ -15,7 +15,7 @@ CLinuxV4l2Sink::CLinuxV4l2Sink(int fd, enum v4l2_buf_type type) {
 }
 
 CLinuxV4l2Sink::~CLinuxV4l2Sink() {
-  Log(LOGDEBUG, "%s::%s - Destroying Sink, Device %d, Type %d", CLASSNAME, __func__, m_Device, m_Type);
+  CLog::Log(LOGDEBUG, "%s::%s - Destroying Sink, Device %d, Type %d", CLASSNAME, __func__, m_Device, m_Type);
 
   StreamOn(VIDIOC_STREAMOFF);
 
@@ -23,7 +23,7 @@ CLinuxV4l2Sink::~CLinuxV4l2Sink() {
     for (int i = 0; i < m_NumBuffers*m_NumPlanes; i++)
       if(m_Addresses[i] != (unsigned long)MAP_FAILED)
         if (munmap((void *)m_Addresses[i], m_Planes[i].length) == 0) {
-//        Log(LOGDEBUG, "%s::%s - Munmapped Plane %d size %u at 0x%lx", CLASSNAME, __func__, i, m_Planes[i].length, m_Addresses[i]);
+//        CLog::Log(LOGDEBUG, "%s::%s - Munmapped Plane %d size %u at 0x%lx", CLASSNAME, __func__, i, m_Planes[i].length, m_Addresses[i]);
         }
   if (m_Planes)
     delete[] m_Planes;
@@ -35,7 +35,7 @@ CLinuxV4l2Sink::~CLinuxV4l2Sink() {
 
 // Init for MMAP buffers
 bool CLinuxV4l2Sink::Init(int buffersCount = 0) {
-  Log(LOGDEBUG, "%s::%s - Init MMAP %d buffers", CLASSNAME, __func__, buffersCount);
+  CLog::Log(LOGDEBUG, "%s::%s - Init MMAP %d buffers", CLASSNAME, __func__, buffersCount);
   m_Memory = V4L2_MEMORY_MMAP;
 
   struct v4l2_format format;
@@ -64,7 +64,7 @@ bool CLinuxV4l2Sink::Init(int buffersCount = 0) {
 }
 // Init for USERPTR buffers
 bool CLinuxV4l2Sink::Init(CLinuxV4l2Sink *sink) {
-  Log(LOGDEBUG, "%s::%s - Init UserPTR", CLASSNAME, __func__);
+  CLog::Log(LOGDEBUG, "%s::%s - Init UserPTR", CLASSNAME, __func__);
   m_Memory = V4L2_MEMORY_USERPTR;
 
   struct v4l2_format format;
@@ -93,7 +93,7 @@ bool CLinuxV4l2Sink::GetFormat(v4l2_format *format) {
   if (ioctl(m_Device, VIDIOC_G_FMT, format))
     return false;
   m_NumPlanes = format->fmt.pix_mp.num_planes;
-  Log(LOGDEBUG, "%s::%s - G_FMT Device %d, Type %d format 0x%x (%dx%d), plane[0]=%d plane[1]=%d", CLASSNAME, __func__, m_Device, format->type, format->fmt.pix_mp.pixelformat, format->fmt.pix_mp.width, format->fmt.pix_mp.height, format->fmt.pix_mp.plane_fmt[0].sizeimage, format->fmt.pix_mp.plane_fmt[1].sizeimage);
+  CLog::Log(LOGDEBUG, "%s::%s - G_FMT Device %d, Type %d format 0x%x (%dx%d), plane[0]=%d plane[1]=%d", CLASSNAME, __func__, m_Device, format->type, format->fmt.pix_mp.pixelformat, format->fmt.pix_mp.width, format->fmt.pix_mp.height, format->fmt.pix_mp.plane_fmt[0].sizeimage, format->fmt.pix_mp.plane_fmt[1].sizeimage);
   return true;
 }
 
@@ -101,7 +101,7 @@ bool CLinuxV4l2Sink::SetFormat(v4l2_format *format) {
   format->type = m_Type;
   if (format->fmt.pix_mp.pixelformat == 0)
     return true;
-  Log(LOGDEBUG, "%s::%s - S_FMT Device %d, Type %d format 0x%x (%dx%d), plane[0]=%d plane[1]=%d", CLASSNAME, __func__, m_Device, format->type, format->fmt.pix_mp.pixelformat, format->fmt.pix_mp.width, format->fmt.pix_mp.height, format->fmt.pix_mp.plane_fmt[0].sizeimage, format->fmt.pix_mp.plane_fmt[1].sizeimage);
+  CLog::Log(LOGDEBUG, "%s::%s - S_FMT Device %d, Type %d format 0x%x (%dx%d), plane[0]=%d plane[1]=%d", CLASSNAME, __func__, m_Device, format->type, format->fmt.pix_mp.pixelformat, format->fmt.pix_mp.width, format->fmt.pix_mp.height, format->fmt.pix_mp.plane_fmt[0].sizeimage, format->fmt.pix_mp.plane_fmt[1].sizeimage);
   format->type = m_Type;
   if (ioctl(m_Device, VIDIOC_S_FMT, format))
     return false;
@@ -113,20 +113,20 @@ bool CLinuxV4l2Sink::GetCrop(v4l2_crop *crop) {
   crop->type = m_Type;
   if (ioctl(m_Device, VIDIOC_G_CROP, crop))
     return false;
-  Log(LOGDEBUG, "%s::%s - G_CROP Device %d, Type %d, crop (%dx%d)", CLASSNAME, __func__, m_Device, crop->type, crop->c.width, crop->c.height);
+  CLog::Log(LOGDEBUG, "%s::%s - G_CROP Device %d, Type %d, crop (%dx%d)", CLASSNAME, __func__, m_Device, crop->type, crop->c.width, crop->c.height);
   return true;
 }
 
 bool CLinuxV4l2Sink::SetCrop(v4l2_crop *crop) {
   crop->type = m_Type;
-  Log(LOGDEBUG, "%s::%s - S_CROP Device %d, Type %d, crop (%dx%d)", CLASSNAME, __func__, m_Device, crop->type, crop->c.width, crop->c.height);
+  CLog::Log(LOGDEBUG, "%s::%s - S_CROP Device %d, Type %d, crop (%dx%d)", CLASSNAME, __func__, m_Device, crop->type, crop->c.width, crop->c.height);
   if (ioctl(m_Device, VIDIOC_S_CROP, crop))
     return false;
   return true;
 }
 
 int CLinuxV4l2Sink::RequestBuffers(int buffersCount) {
-  Log(LOGDEBUG, "%s::%s - Device %d, Type %d, RequestBuffers %d", CLASSNAME, __func__, m_Device, m_Type, buffersCount);
+  CLog::Log(LOGDEBUG, "%s::%s - Device %d, Type %d, RequestBuffers %d", CLASSNAME, __func__, m_Device, m_Type, buffersCount);
   struct v4l2_requestbuffers reqbuf;
   memset(&reqbuf, 0, sizeof(struct v4l2_requestbuffers));
   reqbuf.type     = m_Type;
@@ -136,7 +136,7 @@ int CLinuxV4l2Sink::RequestBuffers(int buffersCount) {
   if (ioctl(m_Device, VIDIOC_REQBUFS, &reqbuf))
     return V4L2_ERROR;
 
-  Log(LOGDEBUG, "%s::%s - Device %d, Type %d, Buffers allowed %d", CLASSNAME, __func__, m_Device, m_Type, reqbuf.count);
+  CLog::Log(LOGDEBUG, "%s::%s - Device %d, Type %d, Buffers allowed %d", CLASSNAME, __func__, m_Device, m_Type, reqbuf.count);
   return reqbuf.count;
 }
 
@@ -165,7 +165,7 @@ bool CLinuxV4l2Sink::MmapBuffers() {
       m_Addresses[i] = (unsigned long)mmap(NULL, m_Planes[i].length, PROT_READ | PROT_WRITE, MAP_SHARED, m_Device, m_Planes[i].m.mem_offset);
       if (m_Addresses[i] == (unsigned long)MAP_FAILED)
         return false;
-//    Log(LOGDEBUG, "%s::%s - MMapped Plane %d at 0x%x in device to address 0x%lx", CLASSNAME, __func__, i, m_Planes[i].m.mem_offset, m_Addresses[i]);
+//    CLog::Log(LOGDEBUG, "%s::%s - MMapped Plane %d at 0x%x in device to address 0x%lx", CLASSNAME, __func__, i, m_Planes[i].m.mem_offset, m_Addresses[i]);
     }
   }
   return true;
@@ -174,12 +174,12 @@ bool CLinuxV4l2Sink::MmapBuffers() {
 bool CLinuxV4l2Sink::StreamOn(int state) {
   if(ioctl(m_Device, state, &m_Type))
     return false;
-  Log(LOGDEBUG, "%s::%s - Device %d, Type %d, %d", CLASSNAME, __func__, m_Device, m_Type, state);
+  CLog::Log(LOGDEBUG, "%s::%s - Device %d, Type %d, %d", CLASSNAME, __func__, m_Device, m_Type, state);
   return true;
 }
 
 bool CLinuxV4l2Sink::QueueBuffer(v4l2_buffer *buffer) {
-  Log(LOGDEBUG, "%s::%s - Device %d, Memory %d, Type %d <- %d", CLASSNAME, __func__, m_Device, buffer->memory, buffer->type, buffer->index);
+  CLog::Log(LOGDEBUG, "%s::%s - Device %d, Memory %d, Type %d <- %d", CLASSNAME, __func__, m_Device, buffer->memory, buffer->type, buffer->index);
   if (ioctl(m_Device, VIDIOC_QBUF, buffer))
     return false;
   return true;
@@ -187,7 +187,7 @@ bool CLinuxV4l2Sink::QueueBuffer(v4l2_buffer *buffer) {
 bool CLinuxV4l2Sink::DequeueBuffer(v4l2_buffer *buffer) {
   if (ioctl(m_Device, VIDIOC_DQBUF, buffer))
     return false;
-  Log(LOGDEBUG, "%s::%s - Device %d, Memory %d, Type %d -> %d", CLASSNAME, __func__, m_Device, buffer->memory, buffer->type, buffer->index);
+  CLog::Log(LOGDEBUG, "%s::%s - Device %d, Memory %d, Type %d -> %d", CLASSNAME, __func__, m_Device, buffer->memory, buffer->type, buffer->index);
   return true;
 }
 

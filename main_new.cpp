@@ -6,6 +6,11 @@
 #include "main_new.h"
 #include "parser.h"
 
+#ifdef CLASSNAME
+#undef CLASSNAME
+#endif
+#define CLASSNAME "Main"
+
 struct in in;
 
 void OpenDevices()
@@ -59,13 +64,13 @@ void OpenDevices()
                 (cap.capabilities & V4L2_CAP_VIDEO_M2M_MPLANE ||
                 (cap.capabilities & (V4L2_CAP_VIDEO_CAPTURE_MPLANE | V4L2_CAP_VIDEO_OUTPUT_MPLANE)))) {
                 m_iDecoderHandle = fd;
-                msg("\e[1;32mMFC\e[0m Found %s %s", drivername, devname);
+                CLog::Log(LOGNOTICE, "%s::%s - \e[1;32mMFC\e[0m Found %s %s", CLASSNAME, __func__, drivername, devname);
                 struct v4l2_format fmt;
                 memzero(fmt);
                 fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
                 fmt.fmt.pix_mp.pixelformat = V4L2_PIX_FMT_NV12M;
                 if (ioctl(m_iDecoderHandle, VIDIOC_TRY_FMT, &fmt) == 0) {
-                  msg("\e[1;32mMFC\e[0m Direct decoding to untiled picture is supported, no conversion needed");
+                  CLog::Log(LOGNOTICE, "%s::%s - \e[1;32mMFC\e[0m Direct decoding to untiled picture is supported, no conversion needed", CLASSNAME, __func__);
                   m_iConverterHandle = -1;
                   return;
                 }
@@ -85,7 +90,7 @@ void OpenDevices()
                 (cap.capabilities & V4L2_CAP_VIDEO_M2M_MPLANE ||
                 (cap.capabilities & (V4L2_CAP_VIDEO_CAPTURE_MPLANE | V4L2_CAP_VIDEO_OUTPUT_MPLANE)))) {
                 m_iConverterHandle = fd;
-                msg("\e[1;31mFIMC\e[0m Found %s %s", drivername, devname);
+                CLog::Log(LOGNOTICE, "%s::%s - \e[1;31mFIMC\e[0m Found %s %s", CLASSNAME, __func__, drivername, devname);
               }
           }
           if (m_iConverterHandle < 0)
@@ -175,7 +180,7 @@ bool SetupDevices(char *header, int headerSize) {
 }
 
 void Cleanup() {
-  msg("Starting cleanup");
+  CLog::Log(LOGNOTICE, "%s::%s - Starting cleanup", CLASSNAME, __func__);
 
   munmap(in.p, in.size);
   close(in.fd);
@@ -205,7 +210,7 @@ int main(int argc, char** argv) {
 
   OpenDevices();
   if (m_iDecoderHandle < 0) {
-    err("\e[1;32mMFC\e[0m Cannot find");
+    CLog::Log(LOGERROR, "%s::%s - \e[1;32mMFC\e[0m Cannot find", CLASSNAME, __func__);
     return false;
   }
 
@@ -214,19 +219,19 @@ int main(int argc, char** argv) {
     in.name = (char *)argv[1];
   else
     in.name = (char *)"video";
-  msg("in.name: %s", in.name);
+  CLog::Log(LOGNOTICE, "%s::%s - in.name: %s", CLASSNAME, __func__, in.name);
   in.fd = open(in.name, O_RDONLY);
   if (&in.fd == NULL) {
-    err("Can't open input file %s!", in.name);
+    CLog::Log(LOGERROR, "Can't open input file %s!", CLASSNAME, __func__, in.name);
     return false;
   }
   fstat(in.fd, &in_stat);
   in.size = in_stat.st_size;
   in.offs = 0;
-  msg("opened %s size %d", in.name, in.size);
+  CLog::Log(LOGNOTICE, "%s::%s - opened %s size %d", CLASSNAME, __func__, in.name, in.size);
   in.p = (char *)mmap(0, in.size, PROT_READ, MAP_SHARED, in.fd, 0);
   if (in.p == MAP_FAILED) {
-    err("Failed to map input file %s", in.name);
+    CLog::Log(LOGERROR, "Failed to map input file %s", CLASSNAME, __func__, in.name);
     return false;
   }
 
@@ -238,7 +243,7 @@ int main(int argc, char** argv) {
   char *header;
   header = new char[BUFFER_SIZE];
   (parser->parse_stream)(&parser->ctx, in.p + in.offs, in.size - in.offs, header, BUFFER_SIZE, &used, &frameSize, 1);
-  msg("Extracted header of size %d", frameSize);
+  CLog::Log(LOGNOTICE, "%s::%s - Extracted header of size %d", CLASSNAME, __func__, frameSize);
 
   if (!SetupDevices(header, frameSize))
     return false;
@@ -246,7 +251,7 @@ int main(int argc, char** argv) {
   // Reset the stream to zero position
   memzero(parser->ctx);
 
-  msg("===START===");
+  CLog::Log(LOGNOTICE, "%s::%s - ===START===", CLASSNAME, __func__);
 
   // MAIN LOOP
 
@@ -261,17 +266,17 @@ int main(int argc, char** argv) {
   do {
 
     nanosleep(&tim , &tim2);
-    dbg("nanosleep 1/200");
+    CLog::Log(LOGDEBUG, "%s::%s - nanosleep 1/200", CLASSNAME, __func__);
 
     if (iMFCOutput->GetBuffer(&iBuffer)) {
-      msg("Got buffer %d, filling", iBuffer.iIndex);
+      CLog::Log(LOGNOTICE, "%s::%s - Got buffer %d, filling", CLASSNAME, __func__, iBuffer.iIndex);
       ret = (parser->parse_stream)(&parser->ctx, in.p + in.offs, in.size - in.offs, (char *)iBuffer.cPlane[0], BUFFER_SIZE, &used, &frameSize, 0);
       if (ret == 0 && in.offs == in.size) {
-        msg("Parser has extracted all frames");
+        CLog::Log(LOGNOTICE, "%s::%s - Parser has extracted all frames", CLASSNAME, __func__);
         parser->finished = true;
         frameSize = 0;
       } else {
-        msg("Extracted frame number %d of size %d", frameNumber, frameSize);
+        CLog::Log(LOGNOTICE, "%s::%s - Extracted frame number %d of size %d", CLASSNAME, __func__, frameNumber, frameSize);
         frameNumber++;
       }
       in.offs += used;
@@ -306,7 +311,7 @@ int main(int argc, char** argv) {
     long pts[2] = { iBuffer.iTimeStamp.tv_sec, iBuffer.iTimeStamp.tv_usec };
     *dequeuedTimestamp = *((double*)&pts[0]);;
 */
-    msg("Got Buffer plane1 0x%lx, plane2 0x%lx from buffer %d", (unsigned long)iBuffer.cPlane[0], (unsigned long)iBuffer.cPlane[1], iBuffer.iIndex);
+    CLog::Log(LOGNOTICE, "%s::%s - Got Buffer plane1 0x%lx, plane2 0x%lx from buffer %d", CLASSNAME, __func__, (unsigned long)iBuffer.cPlane[0], (unsigned long)iBuffer.cPlane[1], iBuffer.iIndex);
 
     if (m_iConverterHandle > -1) {
       if (!iFIMCCapture->PushBuffer(&iBuffer))
@@ -321,14 +326,14 @@ int main(int argc, char** argv) {
   } while (!parser->finished);
 
   if (!parser->finished)
-    msg("errno: %d", errno);
+    CLog::Log(LOGNOTICE, "%s::%s - errno: %d", CLASSNAME, __func__, errno);
 
-  msg("===STOP===");
+  CLog::Log(LOGNOTICE, "%s::%s - ===STOP===", CLASSNAME, __func__);
 
   clock_gettime(CLOCK_REALTIME, &endTs);
   double seconds = (double )(endTs.tv_sec - startTs.tv_sec) + (double )(endTs.tv_nsec - startTs.tv_nsec) / 1000000000;
   double fps = (double)frameNumber / seconds;
-  msg("Runtime %f sec, fps: %f", seconds, fps);
+  CLog::Log(LOGNOTICE, "%s::%s - Runtime %f sec, fps: %f", CLASSNAME, __func__, seconds, fps);
 
   Cleanup();
   return 0;
