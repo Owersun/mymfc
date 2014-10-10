@@ -64,13 +64,13 @@ void OpenDevices()
                 (cap.capabilities & V4L2_CAP_VIDEO_M2M_MPLANE ||
                 (cap.capabilities & (V4L2_CAP_VIDEO_CAPTURE_MPLANE | V4L2_CAP_VIDEO_OUTPUT_MPLANE)))) {
                 m_iDecoderHandle = fd;
-                CLog::Log(LOGNOTICE, "%s::%s - \e[1;32mMFC\e[0m Found %s %s", CLASSNAME, __func__, drivername, devname);
+                CLog::Log(LOGNOTICE, "%s::%s - MFC Found %s %s", CLASSNAME, __func__, drivername, devname);
                 struct v4l2_format fmt;
                 memzero(fmt);
                 fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
                 fmt.fmt.pix_mp.pixelformat = V4L2_PIX_FMT_NV12M;
                 if (ioctl(m_iDecoderHandle, VIDIOC_TRY_FMT, &fmt) == 0) {
-                  CLog::Log(LOGNOTICE, "%s::%s - \e[1;32mMFC\e[0m Direct decoding to untiled picture is supported, no conversion needed", CLASSNAME, __func__);
+                  CLog::Log(LOGNOTICE, "%s::%s - MFC Direct decoding to untiled picture is supported, no conversion needed", CLASSNAME, __func__);
                   m_iConverterHandle = -1;
                   return;
                 }
@@ -90,7 +90,7 @@ void OpenDevices()
                 (cap.capabilities & V4L2_CAP_VIDEO_M2M_MPLANE ||
                 (cap.capabilities & (V4L2_CAP_VIDEO_CAPTURE_MPLANE | V4L2_CAP_VIDEO_OUTPUT_MPLANE)))) {
                 m_iConverterHandle = fd;
-                CLog::Log(LOGNOTICE, "%s::%s - \e[1;31mFIMC\e[0m Found %s %s", CLASSNAME, __func__, drivername, devname);
+                CLog::Log(LOGNOTICE, "%s::%s - FIMC Found %s %s", CLASSNAME, __func__, drivername, devname);
               }
           }
           if (m_iConverterHandle < 0)
@@ -105,13 +105,13 @@ void OpenDevices()
   return;
 }
 
-bool SetupDevices(char *header, int headerSize) {
+bool SetupDevices(uint pixelformat, char *header, int headerSize) {
   struct v4l2_format fmt;
   struct v4l2_crop crop;
   struct V4l2SinkBuffer iBuffer;
 
   memzero(fmt);
-  fmt.fmt.pix_mp.pixelformat = V4L2_PIX_FMT_H264;
+  fmt.fmt.pix_mp.pixelformat = pixelformat;
   fmt.fmt.pix_mp.plane_fmt[0].sizeimage = BUFFER_SIZE;
 
   iMFCOutput = new CLinuxV4l2Sink(m_iDecoderHandle, V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE);
@@ -210,7 +210,7 @@ int main(int argc, char** argv) {
 
   OpenDevices();
   if (m_iDecoderHandle < 0) {
-    CLog::Log(LOGERROR, "%s::%s - \e[1;32mMFC\e[0m Cannot find", CLASSNAME, __func__);
+    CLog::Log(LOGERROR, "%s::%s - MFC Cannot find", CLASSNAME, __func__);
     return false;
   }
 
@@ -245,7 +245,7 @@ int main(int argc, char** argv) {
   (parser->parse_stream)(&parser->ctx, in.p + in.offs, in.size - in.offs, header, BUFFER_SIZE, &used, &frameSize, 1);
   CLog::Log(LOGNOTICE, "%s::%s - Extracted header of size %d", CLASSNAME, __func__, frameSize);
 
-  if (!SetupDevices(header, frameSize))
+  if (!SetupDevices(V4L2_PIX_FMT_H264, header, frameSize))
     return false;
 
   // Reset the stream to zero position

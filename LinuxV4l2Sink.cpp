@@ -229,11 +229,13 @@ bool CLinuxV4l2Sink::PushBuffer(V4l2SinkBuffer *buffer) {
     for (int i = 0; i < m_NumPlanes; i++)
       m_Buffers[buffer->iIndex].m.planes[i].m.userptr = (long unsigned int)buffer->cPlane[i];
 
-  m_Buffers[buffer->iIndex].timestamp = buffer->iTimeStamp;
-  m_Buffers[buffer->iIndex].flags |= V4L2_BUF_FLAG_TIMESTAMP_COPY;
+  if (m_Type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
+    m_Buffers[buffer->iIndex].timestamp = buffer->iTimeStamp;
+    m_Buffers[buffer->iIndex].flags |= V4L2_BUF_FLAG_TIMESTAMP_COPY;
+    for (int i = 0; i < m_NumPlanes; i++)
+      m_Buffers[buffer->iIndex].m.planes[i].bytesused = buffer->iBytesUsed[i];
+  }
 
-  for (int i = 0; i < m_NumPlanes; i++)
-    m_Buffers[buffer->iIndex].m.planes[i].bytesused = buffer->iBytesUsed[i];
   if (!QueueBuffer(&m_Buffers[buffer->iIndex]))
     return false;
   return true;
