@@ -147,6 +147,8 @@ bool SetupDevices(uint pixelformat, char *header, int headerSize) {
 
   if (m_iConverterHandle > -1) {
     iFIMCOutput = new CLinuxV4l2Sink(m_iConverterHandle, V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE);
+    if (!iMFCCapture->GetFormat(&fmt))
+      return false;
     if (!iFIMCOutput->SetFormat(&fmt))
       return false;
     if (!iFIMCOutput->Init(iMFCCapture))
@@ -264,10 +266,10 @@ int main(int argc, char** argv) {
   clock_gettime(CLOCK_REALTIME, &startTs);
 
   do {
-
+/*
     nanosleep(&tim , &tim2);
     CLog::Log(LOGDEBUG, "%s::%s - nanosleep 1/200", CLASSNAME, __func__);
-
+*/
     if (iMFCOutput->GetBuffer(&iBuffer)) {
       CLog::Log(LOGNOTICE, "%s::%s - Got buffer %d, filling", CLASSNAME, __func__, iBuffer.iIndex);
       ret = (parser->parse_stream)(&parser->ctx, in.p + in.offs, in.size - in.offs, (char *)iBuffer.cPlane[0], BUFFER_SIZE, &used, &frameSize, 0);
