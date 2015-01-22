@@ -31,3 +31,9 @@
 #endif
 
 #define memzero(x) memset(&(x), 0, sizeof (x))
+
+#ifdef _DEBUG
+  #define log(...) CLog::Log(__VA_ARGS__)
+#else
+  #define log(...)
+#endif

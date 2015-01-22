@@ -4,10 +4,10 @@ OBJ = main_new.o parser.o LinuxV4l2Sink.o Log.o
 CPPFLAGS= -g
 
 %.o: %.cpp $(HEADERS)
-	$(CC) -o $@ -c $< -I/usr/local/include -I/usr/local/include/libdrm $(CFLAGS) -g
+	$(CC) -o $@ -c $< -I/usr/local/include -I/usr/local/include/libdrm $(CPPFLAGS) -g
 
 mymfc: $(OBJ)
-	$(CC) -g -o $@ $^ -L/usr/local/lib -ldrm -lrt $(CFLAGS)
+	$(CC) -g -o $@ $^ -L/usr/local/lib -ldrm -lrt $(CPPFLAGS)
 
 clean:
 	-rm -f $(OBJ)
