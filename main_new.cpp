@@ -109,8 +109,8 @@ bool SetupDevices(uint pixelformat, char *header, int headerSize) {
   struct v4l2_format fmt;
   struct v4l2_crop crop;
   struct V4l2SinkBuffer iBuffer;
-  int finalSink;
-  int finalFormat = m_iDecoderHandle;
+  int finalSink = m_iDecoderHandle;
+  int finalFormat = -1;
 
   // Test what format we can get finally
   // If converter is present, it is our final sink
@@ -128,6 +128,9 @@ bool SetupDevices(uint pixelformat, char *header, int headerSize) {
   fmt.fmt.pix_mp.pixelformat = V4L2_PIX_FMT_YUV420M;
   if (ioctl(finalSink, VIDIOC_TRY_FMT, &fmt) == 0)
     finalFormat = V4L2_PIX_FMT_YUV420M;
+
+  if (finalFormat < 0)
+    return false;
 
   // Create MFC Output sink (the one where encoded frames are feed)
   memzero(fmt);
