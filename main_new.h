@@ -1,5 +1,5 @@
-int m_iDecoderHandle = -1;
-int m_iConverterHandle = -1;
+V4l2Device *m_iDecoderHandle;
+V4l2Device *m_iConverterHandle;
 
 CLinuxV4l2Sink *iMFCCapture;
 CLinuxV4l2Sink *iMFCOutput;

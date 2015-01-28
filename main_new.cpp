@@ -1,6 +1,6 @@
 #include <linux/videodev2.h>
 
-#include "common.h"
+#include "system.h"
 
 #include "LinuxV4l2Sink.h"
 #include "main_new.h"
@@ -16,9 +16,9 @@ struct in in;
 bool OpenDevices()
 {
   DIR *dir;
-  struct dirent *ent;
 
   if ((dir = opendir ("/sys/class/video4linux/")) != NULL) {
+    struct dirent *ent;
     while ((ent = readdir (dir)) != NULL) {
       if (strncmp(ent->d_name, "video", 5) == 0) {
         char *p;
@@ -53,55 +53,61 @@ bool OpenDevices()
 
         sprintf(devname, "/dev/%s", ++p);
 
-        if (m_iDecoderHandle < 0 && strncmp(drivername, "s5p-mfc-dec", 11) == 0) {
-          struct v4l2_capability cap;
+        if (!m_iDecoderHandle && strstr(drivername, "mfc") != NULL && strstr(drivername, "dec") != NULL) {
           int fd = open(devname, O_RDWR | O_NONBLOCK, 0);
-          if (fd > 0) {
+          if (fd > -1) {
+            struct v4l2_capability cap;
             memzero(cap);
-            ret = ioctl(fd, VIDIOC_QUERYCAP, &cap);
-            if (ret == 0)
+            if (ioctl(fd, VIDIOC_QUERYCAP, &cap) == 0)
               if (cap.capabilities & V4L2_CAP_STREAMING &&
                 (cap.capabilities & V4L2_CAP_VIDEO_M2M_MPLANE ||
                 (cap.capabilities & (V4L2_CAP_VIDEO_CAPTURE_MPLANE | V4L2_CAP_VIDEO_OUTPUT_MPLANE)))) {
-                m_iDecoderHandle = fd;
+                m_iDecoderHandle = new V4l2Device;
+                m_iDecoderHandle->device = fd;
+                strcpy(m_iDecoderHandle->name, drivername);
                 CLog::Log(LOGDEBUG, "%s::%s - MFC Found %s %s", CLASSNAME, __func__, drivername, devname);
                 struct v4l2_format fmt;
                 memzero(fmt);
                 fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
                 fmt.fmt.pix_mp.pixelformat = V4L2_PIX_FMT_NV12M;
-                if (ioctl(m_iDecoderHandle, VIDIOC_TRY_FMT, &fmt) == 0) {
-                  CLog::Log(LOGDEBUG, "%s::%s - MFC Direct decoding to untiled picture is supported, no conversion needed", CLASSNAME, __func__);
-                  m_iConverterHandle = -1;
+                if (ioctl(fd, VIDIOC_TRY_FMT, &fmt) == 0) {
+                  CLog::Log(LOGDEBUG, "%s::%s - Direct decoding to untiled picture on device %s is supported, no conversion needed", CLASSNAME, __func__, m_iDecoderHandle->name);
+                  delete m_iConverterHandle;
+                  m_iConverterHandle = NULL;
                   return true;
                 }
               }
           }
-          if (m_iDecoderHandle < 0)
+          if (!m_iDecoderHandle)
             close(fd);
         }
-        if (m_iConverterHandle < 0 && strstr(drivername, "fimc") != NULL && strstr(drivername, "m2m") != NULL) {
-          struct v4l2_capability cap;
+        if (!m_iConverterHandle && strstr(drivername, "fimc") != NULL && strstr(drivername, "m2m") != NULL) {
           int fd = open(devname, O_RDWR | O_NONBLOCK, 0);
-          if (fd > 0) {
+          if (fd > -1) {
+            struct v4l2_capability cap;
             memzero(cap);
-            ret = ioctl(fd, VIDIOC_QUERYCAP, &cap);
-            if (ret == 0)
+            if (ioctl(fd, VIDIOC_QUERYCAP, &cap) == 0)
               if (cap.capabilities & V4L2_CAP_STREAMING &&
                 (cap.capabilities & V4L2_CAP_VIDEO_M2M_MPLANE ||
                 (cap.capabilities & (V4L2_CAP_VIDEO_CAPTURE_MPLANE | V4L2_CAP_VIDEO_OUTPUT_MPLANE)))) {
-                m_iConverterHandle = fd;
+                m_iConverterHandle = new V4l2Device;
+                m_iConverterHandle->device = fd;
+                strcpy(m_iConverterHandle->name, drivername);
                 CLog::Log(LOGDEBUG, "%s::%s - FIMC Found %s %s", CLASSNAME, __func__, drivername, devname);
               }
           }
-          if (m_iConverterHandle < 0)
+          if (!m_iConverterHandle)
             close(fd);
         }
-        if (m_iDecoderHandle >= 0 && m_iConverterHandle >= 0)
+        if (m_iDecoderHandle && m_iConverterHandle) {
+          closedir (dir);
           return true;
+        }
       }
     }
     closedir (dir);
   }
+
   return false;
 }
 
@@ -109,24 +115,23 @@ bool SetupDevices(uint pixelformat, char *header, int headerSize) {
   struct v4l2_format fmt;
   struct v4l2_crop crop;
   struct V4l2SinkBuffer iBuffer;
-  int finalSink = m_iDecoderHandle;
+  V4l2Device *finalSink = NULL;
   int finalFormat = -1;
 
   // Test what format we can get finally
   // If converter is present, it is our final sink
-  if (m_iConverterHandle > -1)
-    finalSink = m_iConverterHandle;
+  (m_iConverterHandle) ? finalSink = m_iConverterHandle : finalSink = m_iDecoderHandle;
   // Test NV12
   memzero(fmt);
   fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
   fmt.fmt.pix_mp.pixelformat = V4L2_PIX_FMT_NV12M;
-  if (ioctl(finalSink, VIDIOC_TRY_FMT, &fmt) == 0)
+  if (ioctl(finalSink->device, VIDIOC_TRY_FMT, &fmt) == 0)
     finalFormat = V4L2_PIX_FMT_NV12M;
   memzero(fmt);
   // Test YUV420
   fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
   fmt.fmt.pix_mp.pixelformat = V4L2_PIX_FMT_YUV420M;
-  if (ioctl(finalSink, VIDIOC_TRY_FMT, &fmt) == 0)
+  if (ioctl(finalSink->device, VIDIOC_TRY_FMT, &fmt) == 0)
     finalFormat = V4L2_PIX_FMT_YUV420M;
 
   if (finalFormat < 0)
@@ -160,7 +165,7 @@ bool SetupDevices(uint pixelformat, char *header, int headerSize) {
   memzero(fmt);
   iMFCCapture = new CLinuxV4l2Sink(m_iDecoderHandle, V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE);
   // If there is no converter set the format on the sink
-  if (!(m_iConverterHandle > -1)) {
+  if (!(m_iConverterHandle)) {
     fmt.fmt.pix_mp.pixelformat = finalFormat;
     if (!iMFCCapture->SetFormat(&fmt))
         return false;
@@ -185,7 +190,7 @@ bool SetupDevices(uint pixelformat, char *header, int headerSize) {
   iMFCCapture->StreamOn(VIDIOC_STREAMON);
 
   // If converter is present (we need to untile the picture from format MFC produces it)
-  if (m_iConverterHandle > -1) {
+  if (m_iConverterHandle) {
     // Create FIMC Output sink
     iFIMCOutput = new CLinuxV4l2Sink(m_iConverterHandle, V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE);
     // Set the FIMC Output format to the one read from MFC
@@ -240,12 +245,14 @@ void Cleanup() {
 
   delete iMFCCapture;
   delete iMFCOutput;
-  if (m_iConverterHandle > -1) {
+  if (m_iConverterHandle) {
     delete iFIMCCapture;
     delete iFIMCOutput;
-    close(m_iConverterHandle);
+    close(m_iConverterHandle->device);
+    m_iConverterHandle = NULL;
   }
-  close(m_iDecoderHandle);
+  close(m_iDecoderHandle->device);
+  m_iDecoderHandle = NULL;
 }
 
 void intHandler(int dummy=0) {
@@ -265,8 +272,10 @@ int main(int argc, char** argv) {
 
   signal(SIGINT, intHandler);
 
-  if (!OpenDevices())
+  if (!OpenDevices()) {
+    Cleanup();
     return false;
+  }
 
   memzero(in);
   if (argc > 1)
@@ -277,6 +286,7 @@ int main(int argc, char** argv) {
   in.fd = open(in.name, O_RDONLY);
   if (&in.fd == NULL) {
     CLog::Log(LOGERROR, "Can't open input file %s!", CLASSNAME, __func__, in.name);
+    Cleanup();
     return false;
   }
   fstat(in.fd, &in_stat);
@@ -286,10 +296,11 @@ int main(int argc, char** argv) {
   in.p = (char *)mmap(0, in.size, PROT_READ, MAP_SHARED, in.fd, 0);
   if (in.p == MAP_FAILED) {
     CLog::Log(LOGERROR, "Failed to map input file %s", CLASSNAME, __func__, in.name);
+    Cleanup();
     return false;
   }
 
-  parser = new ParserMpeg4;
+  parser = new ParserH264;
   parser->finished = false;
 
   // Prepare header frame
@@ -300,8 +311,10 @@ int main(int argc, char** argv) {
   CLog::Log(LOGDEBUG, "%s::%s - Extracted header of size %d", CLASSNAME, __func__, frameSize);
 
   // Setup devices
-  if (!SetupDevices(V4L2_PIX_FMT_MPEG4, header, frameSize))
+  if (!SetupDevices(V4L2_PIX_FMT_H264, header, frameSize)) {
+    Cleanup();
     return false;
+  }
 
   // Reset the stream to zero position
   memzero(parser->ctx);
@@ -345,7 +358,7 @@ int main(int argc, char** argv) {
       else
         break;
 
-    if (m_iConverterHandle > -1) {
+    if (m_iConverterHandle) {
       if (!iFIMCOutput->PushBuffer(&iBuffer))
         break;
       if (!iFIMCCapture->GetBuffer(&iBuffer))
@@ -360,7 +373,7 @@ int main(int argc, char** argv) {
 */
     CLog::Log(LOGDEBUG, "%s::%s - Got Buffer plane1 0x%lx, plane2 0x%lx, plane3 0x%lx from buffer %d", CLASSNAME, __func__, (unsigned long)iBuffer.cPlane[0], (unsigned long)iBuffer.cPlane[1], (unsigned long)iBuffer.cPlane[2], iBuffer.iIndex);
 
-    if (m_iConverterHandle > -1) {
+    if (m_iConverterHandle) {
       if (!iFIMCCapture->PushBuffer(&iBuffer))
         break;
       if (!iFIMCOutput->DequeueBuffer(&iBuffer))

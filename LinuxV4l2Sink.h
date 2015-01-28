@@ -1,26 +1,7 @@
 #pragma once
 
-/*
- *      Copyright (C) 2005-2012 Team XBMC
- *      http://www.xbmc.org
- *
- *  This Program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2, or (at your option)
- *  any later version.
- *
- *  This Program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with XBMC; see the file COPYING.  If not, see
- *  <http://www.gnu.org/licenses/>.
- *
- */
-
 #include <queue>
+#include <string>
 #include <poll.h>
 #include <linux/videodev2.h>
 
@@ -33,26 +14,30 @@
 #define V4L2_READY 2
 #define V4L2_OK    3
 
-#ifdef __cplusplus
-extern "C" {
+#ifdef _DEBUG
+  #define debug_log(...) CLog::Log(__VA_ARGS__)
+#else
+  #define debug_log(...)
 #endif
 
-#ifdef __cplusplus
-}
-#endif
+typedef struct V4l2Device
+{
+  int     device;
+  char    name[32];
+} V4l2Device;
 
 typedef struct V4l2SinkBuffer
 {
-  int   iIndex;
-  int   iBytesUsed[4];
-  void  *cPlane[4];
-  struct timeval iTimeStamp;
+  int     iIndex;
+  int     iBytesUsed[4];
+  void    *cPlane[4];
+  struct  timeval timeStamp;
 } V4l2SinkBuffer;
 
 class CLinuxV4l2Sink
 {
 public:
-  CLinuxV4l2Sink(int fd, enum v4l2_buf_type type);
+  CLinuxV4l2Sink(V4l2Device *device, enum v4l2_buf_type type);
   ~CLinuxV4l2Sink();
 
   bool Init(int buffersCount);
@@ -68,7 +53,7 @@ public:
   bool QueueAll();
   int Poll(int timeout);
 private:
-  int m_Device;
+  V4l2Device *m_Device;
   int m_NumPlanes;
   int m_NumBuffers;
   std::queue<int> iFreeBuffers;
