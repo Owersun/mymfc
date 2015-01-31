@@ -1,4 +1,4 @@
-#include "Log.h"
+#include "system.h"
 
 void CLog::Log(int loglevel, const char *format, ... )
 {

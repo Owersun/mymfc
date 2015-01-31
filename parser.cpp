@@ -20,7 +20,7 @@
  *
  */
 
-#include "common.h"
+#include "system.h"
 #include "parser.h"
 
 #ifdef CLASSNAME
@@ -62,7 +62,7 @@ int Parser::parse_stream_init(mfc_parser_context *ctx)
 int Parser::parse_stream(
 	mfc_parser_context *ctx,
 	char* in, int in_size, char* out, int out_size,
-	int *consumed, int *frame_size, char get_head)
+	int *consumed, unsigned int *frame_size, char get_head)
 {
   //stub
 }
@@ -70,7 +70,7 @@ int Parser::parse_stream(
 int ParserMpeg4::parse_stream(
 	mfc_parser_context *ctx,
 	char* in, int in_size, char* out, int out_size,
-	int *consumed, int *frame_size, char get_head)
+	int *consumed, unsigned int *frame_size, char get_head)
 {
 	char *in_orig;
 	char tmp;
@@ -239,7 +239,7 @@ int ParserMpeg4::parse_stream(
 int ParserH264::parse_stream(
 	mfc_parser_context *ctx,
 	char* in, int in_size, char* out, int out_size,
-	int *consumed, int *frame_size, char get_head)
+	int *consumed, unsigned int *frame_size, char get_head)
 {
 	char *in_orig;
 	char tmp;
@@ -401,7 +401,7 @@ int ParserH264::parse_stream(
 int ParserMpeg2::parse_stream(
 	mfc_parser_context *ctx,
 	char* in, int in_size, char* out, int out_size,
-	int *consumed, int *frame_size, char get_head)
+	int *consumed, unsigned int *frame_size, char get_head)
 {
 	char *in_orig;
 	char frame_finished;

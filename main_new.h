@@ -1,18 +1,20 @@
-V4l2Device *m_iDecoderHandle;
-V4l2Device *m_iConverterHandle;
+#pragma once
 
-CLinuxV4l2Sink *iMFCCapture;
-CLinuxV4l2Sink *iMFCOutput;
-CLinuxV4l2Sink *iFIMCCapture;
-CLinuxV4l2Sink *iFIMCOutput;
+#include "parser.h"
+#include "DVDVideoCodecMFC.h"
 
-struct in {
+CDVDVideoCodecMFC* m_cVideoCodec;
+Parser* parser;
+CDVDStreamInfo* m_cHints;
+char* m_cFrameData;
+
+typedef struct inputData {
   char *name;
   int fd;
   char *p;
   int size;
   int offs;
-};
+} inputData;
 
 #define BUFFER_SIZE        1048576 //compressed frame size. 1080p mpeg4 10Mb/s can be >256k in size, so this is to make sure frame fits into buffer
                                           //for very unknown reason lesser than 1Mb buffer causes MFC to corrupt its own setup setting inapropriate values
