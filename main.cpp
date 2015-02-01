@@ -1,5 +1,5 @@
 #include "system.h"
-#include "main_new.h"
+#include "main.h"
 
 #ifdef CLASSNAME
 #undef CLASSNAME

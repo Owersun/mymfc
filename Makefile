@@ -1,6 +1,6 @@
 CC=g++
-HEADERS = system.h main_new.h parser.h xbmcstubs.h LinuxV4l2Sink.h Log.h DVDVideoCodecMFC.h
-OBJ = main_new.o parser.o LinuxV4l2Sink.o Log.o DVDVideoCodecMFC.o
+HEADERS = system.h main.h parser.h xbmcstubs.h LinuxV4l2Sink.h Log.h DVDVideoCodecMFC.h
+OBJ = main.o parser.o LinuxV4l2Sink.o Log.o DVDVideoCodecMFC.o
 CPPFLAGS= -g
 
 %.o: %.cpp $(HEADERS)
