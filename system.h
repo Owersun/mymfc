@@ -35,3 +35,6 @@
 #endif
 
 #define memzero(x) memset(&(x), 0, sizeof (x))
+
+#define _DEBUG 1
+#define THIS_IS_NOT_XBMC 1

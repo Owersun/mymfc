@@ -1,25 +1,24 @@
 #include "system.h"
-/*
-#if (defined HAVE_CONFIG_H) && (!defined WIN32)
-  #include "config.h"
+
+#ifndef THIS_IS_NOT_XBMC
+  #if (defined HAVE_CONFIG_H) && (!defined WIN32)
+    #include "config.h"
+  #endif
+  #include "DVDDemuxers/DVDDemux.h"
+  #include "DVDStreamInfo.h"
+  #include "DVDClock.h"
+  #include "guilib/GraphicContext.h"
+  #include "DVDCodecs/DVDCodecs.h"
+  #include "DVDCodecs/DVDCodecUtils.h"
+  #include "settings/Settings.h"
+  #include "settings/DisplaySettings.h"
+  #include "settings/AdvancedSettings.h"
+  #include "utils/fastmemcpy.h"
+  #include "utils/log.h"
 #endif
-*/
+
 #include "DVDVideoCodecMFC.h"
-/*
-#include "DVDDemuxers/DVDDemux.h"
-#include "DVDStreamInfo.h"
-#include "DVDClock.h"
-#include "guilib/GraphicContext.h"
-#include "DVDCodecs/DVDCodecs.h"
-#include "DVDCodecs/DVDCodecUtils.h"
 
-#include "settings/Settings.h"
-#include "settings/DisplaySettings.h"
-#include "settings/AdvancedSettings.h"
-#include "utils/fastmemcpy.h"
-
-#include "utils/log.h"
-*/
 #include <sys/mman.h>
 #include <sys/ioctl.h>
 #include <unistd.h>

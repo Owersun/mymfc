@@ -1,8 +1,12 @@
 #include "system.h"
-#if (defined HAVE_CONFIG_H) && (!defined WIN32)
-  #include "config.h"
+
+#ifndef THIS_IS_NOT_XBMC
+  #if (defined HAVE_CONFIG_H) && (!defined WIN32)
+    #include "config.h"
+  #endif
+
+  #include "utils/log.h"
 #endif
-#include "LinuxV4l2Sink.h"
 
 #include <sys/mman.h>
 #include <sys/ioctl.h>
@@ -12,6 +16,8 @@
 #include <poll.h>
 #include <sys/mman.h>
 #include <linux/media.h>
+
+#include "LinuxV4l2Sink.h"
 
 #ifdef CLASSNAME
 #undef CLASSNAME
@@ -49,7 +55,7 @@ CLinuxV4l2Sink::~CLinuxV4l2Sink() {
 
 // Init for MMAP buffers
 bool CLinuxV4l2Sink::Init(int buffersCount = 0) {
-  CLog::Log(LOGDEBUG, "%s::%s - Device %s, Init MMAP %d buffers", CLASSNAME, __func__, m_Device->name, buffersCount);
+  CLog::Log(LOGDEBUG, "%s::%s - Device %s, Type %d, Init MMAP %d buffers", CLASSNAME, __func__, m_Device->name, m_Type, buffersCount);
   m_Memory = V4L2_MEMORY_MMAP;
 
   struct v4l2_format format;
@@ -60,7 +66,7 @@ bool CLinuxV4l2Sink::Init(int buffersCount = 0) {
     struct v4l2_control ctrl;
     ctrl.id = V4L2_CID_MIN_BUFFERS_FOR_CAPTURE;
     if (ioctl(m_Device->device, VIDIOC_G_CTRL, &ctrl)) {
-      CLog::Log(LOGERROR, "%s::%s - Device %s, Error getting number of buffers for capture (V4L2_CID_MIN_BUFFERS_FOR_CAPTURE VIDIOC_G_CTRL)", CLASSNAME, __func__, m_Device->name);
+      CLog::Log(LOGERROR, "%s::%s - Device %s, Type %d, Error getting number of buffers for capture (V4L2_CID_MIN_BUFFERS_FOR_CAPTURE VIDIOC_G_CTRL)", CLASSNAME, __func__, m_Device->name, m_Type);
       return false;
     }
     buffersCount = (int)(ctrl.value * 1.5); //Most of the time we need 50% more extra capture buffers than device reported would be enough
@@ -80,7 +86,7 @@ bool CLinuxV4l2Sink::Init(int buffersCount = 0) {
 }
 // Init for USERPTR buffers
 bool CLinuxV4l2Sink::Init(CLinuxV4l2Sink *sink) {
-  CLog::Log(LOGDEBUG, "%s::%s - Device %s, Init UserPTR", CLASSNAME, __func__, m_Device->name);
+  CLog::Log(LOGDEBUG, "%s::%s - Device %s, Type %d, Init UserPTR", CLASSNAME, __func__, m_Device->name, m_Type);
   m_Memory = V4L2_MEMORY_USERPTR;
 
   struct v4l2_format format;
@@ -147,7 +153,7 @@ bool CLinuxV4l2Sink::SetCrop(v4l2_crop *crop) {
 }
 
 int CLinuxV4l2Sink::RequestBuffers(int buffersCount) {
-  CLog::Log(LOGDEBUG, "%s::%s - Device %s, Type %d, RequestBuffers %d", CLASSNAME, __func__, m_Device->name, m_Type, buffersCount);
+  CLog::Log(LOGDEBUG, "%s::%s - Device %s, Type %d, Memory %d, RequestBuffers %d", CLASSNAME, __func__, m_Device->name, m_Type, m_Memory, buffersCount);
   struct v4l2_requestbuffers reqbuf;
   memset(&reqbuf, 0, sizeof(struct v4l2_requestbuffers));
   reqbuf.type     = m_Type;
@@ -190,7 +196,7 @@ bool CLinuxV4l2Sink::MmapBuffers() {
       m_Addresses[i] = (unsigned long)mmap(NULL, m_Planes[i].length, PROT_READ | PROT_WRITE, MAP_SHARED, m_Device->device, m_Planes[i].m.mem_offset);
       if (m_Addresses[i] == (unsigned long)MAP_FAILED)
         return false;
-      CLog::Log(LOGDEBUG, "%s::%s - Device %s, MMapped Plane %d at 0x%x to address 0x%lx", CLASSNAME, __func__, m_Device->name, i, m_Planes[i].m.mem_offset, m_Addresses[i]);
+      CLog::Log(LOGDEBUG, "%s::%s - Device %s, Type %d, MMapped Plane %d at 0x%x to address 0x%lx", CLASSNAME, __func__, m_Device->name, m_Type, i, m_Planes[i].m.mem_offset, m_Addresses[i]);
     }
   }
   return true;
@@ -208,17 +214,17 @@ bool CLinuxV4l2Sink::StreamOn(int state) {
 bool CLinuxV4l2Sink::QueueBuffer(v4l2_buffer *buffer) {
   debug_log(LOGDEBUG, "%s::%s - Device %s, Type %d, Memory %d <- %d", CLASSNAME, __func__, m_Device->name, buffer->type, buffer->memory, buffer->index);
   if (ioctl(m_Device->device, VIDIOC_QBUF, buffer)) {
-    CLog::Log(LOGERROR, "%s::%s - Error queueing buffer. Device %s, Type %d, Memory %d. Buffer %d, errno %d", CLASSNAME, __func__, m_Device->name, m_Type, m_Memory, buffer->index, errno);
+    CLog::Log(LOGERROR, "%s::%s - Error queueing buffer. Device %s, Type %d, Memory %d. Buffer %d, errno %d", CLASSNAME, __func__, m_Device->name, buffer->type, buffer->memory, buffer->index, errno);
     return false;
   }
   return true;
 }
 bool CLinuxV4l2Sink::DequeueBuffer(v4l2_buffer *buffer) {
   if (ioctl(m_Device->device, VIDIOC_DQBUF, buffer)) {
-    if (errno != EAGAIN) CLog::Log(LOGERROR, "%s::%s - Error dequeueing buffer. Device %s, Type %d, Memory %d. Buffer %d, errno %d", CLASSNAME, __func__, m_Device->name, m_Type, m_Memory, buffer->index, errno);
+    if (errno != EAGAIN) CLog::Log(LOGERROR, "%s::%s - Error dequeueing buffer. Device %s, Type %d, Memory %d. Buffer %d, errno %d", CLASSNAME, __func__, m_Device->name, buffer->type, buffer->memory, buffer->index, errno);
     return false;
   }
-  debug_log(LOGDEBUG, "%s::%s - Device %s,  Type %d, Memory %d -> %d", CLASSNAME, __func__, m_Device->name, buffer->memory, buffer->type, buffer->index);
+  debug_log(LOGDEBUG, "%s::%s - Device %s, Type %d, Memory %d -> %d", CLASSNAME, __func__, m_Device->name, buffer->type, buffer->memory, buffer->index);
   return true;
 }
 
