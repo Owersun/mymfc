@@ -81,7 +81,7 @@ public:
   int parse_stream_init(mfc_parser_context *ctx);
 
   virtual int parse_stream(mfc_parser_context *ctx,
-          char* in, int in_size, char* out, int out_size,
+          char* in, int in_size, unsigned char* out, int out_size,
           int *consumed, unsigned int *frame_size, char get_head);
 };
 
@@ -91,7 +91,7 @@ public:
   ParserMpeg4();
   virtual ~ParserMpeg4();
   int parse_stream(mfc_parser_context *ctx,
-          char* in, int in_size, char* out, int out_size,
+          char* in, int in_size, unsigned char* out, int out_size,
           int *consumed, unsigned int *frame_size, char get_head);
 };
 class ParserH264: public Parser
@@ -100,7 +100,7 @@ public:
   ParserH264();
   virtual ~ParserH264();
   int parse_stream(mfc_parser_context *ctx,
-          char* in, int in_size, char* out, int out_size,
+          char* in, int in_size, unsigned char* out, int out_size,
           int *consumed, unsigned int *frame_size, char get_head);
 };
 class ParserMpeg2: public Parser
@@ -109,6 +109,6 @@ public:
   ParserMpeg2();
   virtual ~ParserMpeg2();
   int parse_stream(mfc_parser_context *ctx,
-          char* in, int in_size, char* out, int out_size,
+          char* in, int in_size, unsigned char* out, int out_size,
           int *consumed, unsigned int *frame_size, char get_head);
 };

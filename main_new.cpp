@@ -15,6 +15,8 @@ void Cleanup() {
     delete m_cHints;
   if (parser)
     delete parser;
+  if (m_pDvdVideoPicture)
+    delete m_pDvdVideoPicture;
 }
 
 void intHandler(int dummy=0) {
@@ -27,12 +29,12 @@ int main(int argc, char** argv) {
   m_cHints = NULL;
   m_cFrameData = NULL;
   parser = NULL;
+  m_pDvdVideoPicture = NULL;
 
   struct inputData in;
   struct stat in_stat;
   int used;
   timespec startTs, endTs;
-  int frameNumber = 0;
 
   signal(SIGINT, intHandler);
 
@@ -67,7 +69,7 @@ int main(int argc, char** argv) {
   m_cHints = new CDVDStreamInfo();
   m_cHints->software = false;
   m_cHints->codec = AV_CODEC_ID_H264;
-  m_cFrameData = new char[BUFFER_SIZE];
+  m_cFrameData = new unsigned char[BUFFER_SIZE];
   m_cHints->extradata = m_cFrameData;
 
   // Prepare header frame
@@ -89,71 +91,31 @@ int main(int argc, char** argv) {
 
   // MAIN LOOP
 
+  int frameNumber = 0;
+  unsigned int frameSize = 0;
+  int ret = 0;
+  m_pDvdVideoPicture = new DVDVideoPicture();
+
   clock_gettime(CLOCK_REALTIME, &startTs);
 
-/*
   do {
-    if (iMFCOutput->GetBuffer(&iBuffer)) {
-      CLog::Log(LOGDEBUG, "%s::%s - Got empty buffer %d from MFC Output, filling", CLASSNAME, __func__, iBuffer.iIndex);
-      ret = (parser->parse_stream)(&parser->ctx, in.p + in.offs, in.size - in.offs, (char *)iBuffer.cPlane[0], BUFFER_SIZE, &used, &frameSize, 0);
-      if (ret == 0 && in.offs == in.size) {
-        CLog::Log(LOGNOTICE, "%s::%s - Parser has extracted all frames", CLASSNAME, __func__);
-        parser->finished = true;
-        frameSize = 0;
-      } else {
-        CLog::Log(LOGDEBUG, "%s::%s - Extracted frame number %d of size %d", CLASSNAME, __func__, frameNumber, frameSize);
-        frameNumber++;
-      }
-      in.offs += used;
-      iBuffer.iBytesUsed[0] = frameSize;
-*/
-/*
-      long* pts = (long*)&buffer->timestamp;
-      iBuffer.iTimeStamp.tv_sec = pts[0];
-      iBuffer.iTimeStamp.tv_usec = pts[1];
-*/
-/*
-      if (!iMFCOutput->PushBuffer(&iBuffer))
-        break;
-    } else
-      if (errno != EAGAIN)
-        break;
 
-    if (!iMFCCapture->GetBuffer(&iBuffer))
-      if (errno == EAGAIN)
-        continue;
-      else
-        break;
-
-    if (m_iConverterHandle) {
-      if (!iFIMCOutput->PushBuffer(&iBuffer))
-        break;
-      if (!iFIMCCapture->GetBuffer(&iBuffer))
-        if (errno == EAGAIN)
-          continue;
-        else
-          break;
-    }
-*/
-/*
-    long pts[2] = { iBuffer.iTimeStamp.tv_sec, iBuffer.iTimeStamp.tv_usec };
-    *dequeuedTimestamp = *((double*)&pts[0]);;
-*/
-/*
-    CLog::Log(LOGDEBUG, "%s::%s - Got Buffer plane1 0x%lx, plane2 0x%lx, plane3 0x%lx from buffer %d", CLASSNAME, __func__, (unsigned long)iBuffer.cPlane[0], (unsigned long)iBuffer.cPlane[1], (unsigned long)iBuffer.cPlane[2], iBuffer.iIndex);
-
-    if (m_iConverterHandle) {
-      if (!iFIMCCapture->PushBuffer(&iBuffer))
-        break;
-      if (!iFIMCOutput->DequeueBuffer(&iBuffer))
-        break;
-    }
-
-    if (!iMFCCapture->PushBuffer(&iBuffer))
+    ret = (parser->parse_stream)(&parser->ctx, in.p + in.offs, in.size - in.offs, m_cFrameData, BUFFER_SIZE, &used, &frameSize, 0);
+    if (ret == 0 && in.offs == in.size) {
+      CLog::Log(LOGNOTICE, "%s::%s - Parser has extracted all frames", CLASSNAME, __func__);
+      parser->finished = true;
       break;
+    }
 
-  } while (!parser->finished);
-*/
+    CLog::Log(LOGDEBUG, "%s::%s - Extracted frame number %d of size %d", CLASSNAME, __func__, frameNumber, frameSize);
+    frameNumber++;
+    in.offs += used;
+
+    ret = m_cVideoCodec->Decode(m_cFrameData, frameSize, DVD_NOPTS_VALUE, DVD_NOPTS_VALUE);
+    if (ret | VC_PICTURE)
+      m_cVideoCodec->GetPicture(m_pDvdVideoPicture);
+
+  } while (ret | VC_BUFFER && !parser->finished);
 
   if (!parser->finished)
     CLog::Log(LOGERROR, "%s::%s - errno: %d", CLASSNAME, __func__, errno);

@@ -17,7 +17,7 @@
 #ifdef _DEBUG
   #define debug_log(...) CLog::Log(__VA_ARGS__)
 #else
-  #define debug_log(...)
+  #define debug_log(...) CLog::Log(__VA_ARGS__)
 #endif
 
 typedef struct V4l2Device

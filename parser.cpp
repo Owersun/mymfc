@@ -61,7 +61,7 @@ int Parser::parse_stream_init(mfc_parser_context *ctx)
 
 int Parser::parse_stream(
 	mfc_parser_context *ctx,
-	char* in, int in_size, char* out, int out_size,
+	char* in, int in_size, unsigned char* out, int out_size,
 	int *consumed, unsigned int *frame_size, char get_head)
 {
   //stub
@@ -69,7 +69,7 @@ int Parser::parse_stream(
 
 int ParserMpeg4::parse_stream(
 	mfc_parser_context *ctx,
-	char* in, int in_size, char* out, int out_size,
+	char* in, int in_size, unsigned char* out, int out_size,
 	int *consumed, unsigned int *frame_size, char get_head)
 {
 	char *in_orig;
@@ -238,7 +238,7 @@ int ParserMpeg4::parse_stream(
 
 int ParserH264::parse_stream(
 	mfc_parser_context *ctx,
-	char* in, int in_size, char* out, int out_size,
+	char* in, int in_size, unsigned char* out, int out_size,
 	int *consumed, unsigned int *frame_size, char get_head)
 {
 	char *in_orig;
@@ -400,7 +400,7 @@ int ParserH264::parse_stream(
 
 int ParserMpeg2::parse_stream(
 	mfc_parser_context *ctx,
-	char* in, int in_size, char* out, int out_size,
+	char* in, int in_size, unsigned char* out, int out_size,
 	int *consumed, unsigned int *frame_size, char get_head)
 {
 	char *in_orig;
