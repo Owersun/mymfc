@@ -42,6 +42,7 @@ public:
 
   bool Init(int buffersCount);
   bool Init(CLinuxV4l2Sink *sink);
+  bool SoftRestart();
   bool GetFormat(v4l2_format *format);
   bool SetFormat(v4l2_format *format);
   bool GetCrop(v4l2_crop *crop);

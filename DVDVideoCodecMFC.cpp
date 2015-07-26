@@ -13,7 +13,6 @@
   #include "settings/Settings.h"
   #include "settings/DisplaySettings.h"
   #include "settings/AdvancedSettings.h"
-  #include "utils/fastmemcpy.h"
   #include "utils/log.h"
 #endif
 
@@ -241,11 +240,13 @@ bool CDVDVideoCodecMFC::Open(CDVDStreamInfo &hints, CDVDCodecOptions &options) {
   if (ioctl(finalSink->device, VIDIOC_TRY_FMT, &fmt) == 0)
     finalFormat = V4L2_PIX_FMT_NV12M;
   memzero(fmt);
+/*
   // Test YUV420 3 Planes Y/Cb/Cr
   fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
   fmt.fmt.pix_mp.pixelformat = V4L2_PIX_FMT_YUV420M;
   if (ioctl(finalSink->device, VIDIOC_TRY_FMT, &fmt) == 0)
     finalFormat = V4L2_PIX_FMT_YUV420M;
+*/
 
   // No suitable output formats available
   if (finalFormat < 0) {
@@ -419,11 +420,12 @@ bool CDVDVideoCodecMFC::Open(CDVDStreamInfo &hints, CDVDCodecOptions &options) {
     /*
      Due to BUG in MFC v8 (-XU3) firmware the Y plane of the picture has the right line size,
      but the U and V planes line sizes are actually halves of Y plane line size padded to 32
-     This is pure workaround for -XU3 MFCv8 firmware "MFC v8.0, F/W: 14yy, 01mm, 13dd (D):
+     This is pure workaround for -XU3 MFCv8 firmware "MFC v8.0, F/W: 14yy, 01mm, 13dd (D)
+     Seems that only MPEG2 is affected
     */
     // Only on -XU3 there are no converter, but the output format can be YUV420
     // So this is the easiest way to distinguish -XU3 from -U3 with FIMC
-    if (!m_iConverterHandle)
+    if (!m_iConverterHandle && m_hints.codec == AV_CODEC_ID_MPEG2VIDEO)
       resultLineSize = resultLineSize + (32 - resultLineSize%32);
 
     m_videoBuffer.format          = RENDER_FMT_YUV420P;
@@ -472,7 +474,7 @@ int CDVDVideoCodecMFC::Decode(BYTE* pData, int iSize, double dts, double pts) {
     if (m_MFCOutput->GetBuffer(m_Buffer)) {
       debug_log(LOGDEBUG, "%s::%s - Got empty buffer %d from MFC Output, filling", CLASSNAME, __func__, m_Buffer->iIndex);
       m_Buffer->iBytesUsed[0] = demuxer_bytes;
-      fast_memcpy((uint8_t *)m_Buffer->cPlane[0], demuxer_content, m_Buffer->iBytesUsed[0]);
+      memcpy((uint8_t *)m_Buffer->cPlane[0], demuxer_content, m_Buffer->iBytesUsed[0]);
       long* longPts = (long*)&pts;
       m_Buffer->timeStamp.tv_sec = longPts[0];
       m_Buffer->timeStamp.tv_usec = longPts[1];
@@ -549,14 +551,21 @@ int CDVDVideoCodecMFC::Decode(BYTE* pData, int iSize, double dts, double pts) {
 
 void CDVDVideoCodecMFC::Reset() {
 
-  if (m_bCodecHealthy) // We need real reset only when codec went unhealthy
-    return;
-  CLog::Log(LOGERROR, "%s::%s - Codec Reset. Reinitializing", CLASSNAME, __func__);
-  CDVDCodecOptions options;
-  // We need full MFC/FIMC reset with device reopening.
-  // I wasn't able to reinitialize both IP's without fully closing and reopening them.
-  // There are always some clips that cause MFC or FIMC go into state which cannot be reset without close/open
-  Open(m_hints, options);
+  if (m_bCodecHealthy) {
+    CLog::Log(LOGDEBUG, "%s::%s - Codec Reset requested, but codec is healthy, doing soft-flush", CLASSNAME, __func__);
+    m_MFCOutput->SoftRestart();
+    m_MFCCapture->SoftRestart();
+    if (!m_iConverterHandle)
+      m_BufferNowOnScreen->iIndex = -1;
+  } else {
+    CLog::Log(LOGERROR, "%s::%s - Codec Reset. Reinitializing", CLASSNAME, __func__);
+    CDVDCodecOptions options;
+    // We need full MFC/FIMC reset with device reopening.
+    // I wasn't able to reinitialize both IP's without fully closing and reopening them.
+    // There are always some clips that cause MFC or FIMC go into state which cannot be reset without close/open
+    Open(m_hints, options);
+  }
+
 }
 
 bool CDVDVideoCodecMFC::GetPicture(DVDVideoPicture* pDvdVideoPicture) {

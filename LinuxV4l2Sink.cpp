@@ -109,6 +109,20 @@ bool CLinuxV4l2Sink::Init(CLinuxV4l2Sink *sink) {
   return true;
 }
 
+bool CLinuxV4l2Sink::SoftRestart() {
+  StreamOn(VIDIOC_STREAMOFF);
+
+  while (!iFreeBuffers.empty())
+    iFreeBuffers.pop();
+  for (int i = 0; i < m_NumBuffers; i++)
+    iFreeBuffers.push(m_Buffers[i].index);
+
+  if (m_Type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)
+    QueueAll();
+
+  StreamOn(VIDIOC_STREAMON);
+}
+
 bool CLinuxV4l2Sink::GetFormat(v4l2_format *format) {
   memset(format, 0, sizeof(struct v4l2_format));
   format->type = m_Type;
