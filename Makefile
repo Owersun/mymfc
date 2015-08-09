@@ -7,7 +7,7 @@ CPPFLAGS= -g
 	$(CC) $(CPPFLAGS) -o $@ -c $<
 
 mymfc: $(OBJ)
-	$(CC) $(CPPFLAGS) -o $@ $^ -L/usr/lib/aml_libs -lamadec -lamcodec
+	$(CC) $(CPPFLAGS) -o $@ $^ -L/usr/lib/aml_libs -lamcodec -lamadec -lasound -lamavutils
 
 clean:
 	-rm -f $(OBJ)
