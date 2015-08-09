@@ -1,6 +1,14 @@
-#define BYTE unsigned char
+#pragma once
 
-#define fast_memcpy memcpy
+#ifdef __cplusplus
+extern "C" {
+#endif
+  #include "libavcodec/avcodec.h"
+#ifdef __cplusplus
+}
+#endif
+
+#define BYTE unsigned char
 
 #define DVD_NOPTS_VALUE    (-1LL<<52) // should be possible to represent in both double and int64_t
 
@@ -23,16 +31,12 @@
 #define VC_FLUSHED  0x00000010  // the decoder lost it's state, we need to restart decoding again
 #define VC_DROPPED  0x00000020  // needed to identify if a picture was dropped
 
-class CDVDCodecOptions {
-};
+#define DVD_PLAYSPEED_PAUSE       0       // frame stepping
+#define DVD_PLAYSPEED_NORMAL      1000
 
-enum AVCodecID {
-  AV_CODEC_ID_VC1 = 0,
-  AV_CODEC_ID_MPEG1VIDEO,
-  AV_CODEC_ID_MPEG2VIDEO,
-  AV_CODEC_ID_MPEG4,
-  AV_CODEC_ID_H263,
-  AV_CODEC_ID_H264,
+#define DVD_TIME_BASE 1000000
+
+class CDVDCodecOptions {
 };
 
 enum ERenderFormat {
@@ -102,6 +106,19 @@ public:
   void*        extradata; // extra data for codec to use
   unsigned int extrasize; // size of extra data
   bool ptsinvalid;  // pts cannot be trusted (avi's).
+
+  int fpsscale; // scale of 1001 and a rate of 60000 will result in 59.94 fps
+  int fpsrate;
+  int rfpsscale;
+  int rfpsrate;
+  int height; // height of the stream reported by the demuxer
+  int width; // width of the stream reported by the demuxer
+  float aspect; // display aspect as reported by demuxer
+  bool forced_aspect; // aspect is forced from container
+
+  int pid;
+  unsigned int codec_tag; // extra identifier hints for decoding
+  int orientation; // orientation of the video in degress counter clockwise
 };
 
 class CDVDVideoCodec {
@@ -123,3 +140,25 @@ public:
   int               GetExtraSize() const { return 0; };
 };
 
+#define aml_permissions() true
+
+class SysfsUtils {
+public:
+  static int SetInt(const std::string& path, const int val)
+  {
+    int fd = open(path.c_str(), O_RDWR, 0644);
+    int ret = 0;
+    if (fd >= 0)
+    {
+      char bcmd[16];
+      sprintf(bcmd, "%d", val);
+      if (write(fd, bcmd, strlen(bcmd)) < 0)
+        ret = -1;
+      close(fd);
+    }
+    if (ret)
+      CLog::Log(LOGERROR, "%s: error writing %s",__FUNCTION__, path.c_str());
+
+    return ret;
+  }
+};

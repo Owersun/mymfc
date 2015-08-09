@@ -38,8 +38,8 @@ int main(int argc, char** argv) {
 
   signal(SIGINT, intHandler);
 
-  m_cVideoCodec = new CDVDVideoCodecMFC();
-  
+  m_cVideoCodec = new CDVDVideoCodecC1();
+
   memzero(in);
   if (argc > 1)
     in.name = (char *)argv[1];

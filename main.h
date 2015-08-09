@@ -1,9 +1,12 @@
 #pragma once
 
 #include "parser.h"
-#include "DVDVideoCodecMFC.h"
+#include "DVDVideoCodecC1.h"
+#include "LinuxC1Codec.h"
 
-CDVDVideoCodecMFC* m_cVideoCodec;
+#define BUFFER_SIZE 1048576
+
+CDVDVideoCodecC1* m_cVideoCodec;
 DVDVideoPicture* m_pDvdVideoPicture;
 Parser* parser;
 CDVDStreamInfo* m_cHints;
@@ -16,4 +19,3 @@ typedef struct inputData {
   int size;
   int offs;
 } inputData;
-
