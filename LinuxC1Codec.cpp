@@ -349,7 +349,7 @@ int pre_header_feeding(am_private_t *para, am_packet_t *pkt)
 
 CLinuxC1Codec::CLinuxC1Codec() {
   am_private = new am_private_t;
-  memzero(am_private);
+  memzero(*am_private);
 }
 
 CLinuxC1Codec::~CLinuxC1Codec() {
@@ -377,7 +377,7 @@ bool CLinuxC1Codec::OpenDecoder(CDVDStreamInfo &hints) {
 
   ShowMainVideo(false);
 
-  memzero(am_private->am_pkt);
+  memzero(*am_private);
   am_private->stream_type      = AM_STREAM_ES;
   am_private->video_width      = hints.width;
   am_private->video_height     = hints.height;
