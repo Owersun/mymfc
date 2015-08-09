@@ -152,4 +152,8 @@ private:
   am_private_t    *am_private;
   volatile int64_t m_1st_pts;
   volatile int64_t m_cur_pts;
+  volatile int64_t m_cur_pictcnt;
+  volatile int64_t m_old_pictcnt;
+  int64_t          m_start_dts;
+  int64_t          m_start_pts;
 };

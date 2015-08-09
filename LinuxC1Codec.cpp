@@ -15,6 +15,25 @@
 #endif
 #define CLASSNAME "CLinuxC1Codec"
 
+static int64_t get_pts_video()
+{
+  int fd = open("/sys/class/tsync/pts_video", O_RDONLY);
+  if (fd >= 0)
+  {
+    char pts_str[16];
+    int size = read(fd, pts_str, sizeof(pts_str));
+    close(fd);
+    if (size > 0)
+    {
+      unsigned long pts = strtoul(pts_str, NULL, 16);
+      CLog::Log(LOGERROR, "get_pts_video: %lu", pts);
+      return pts;
+    }
+  }
+  CLog::Log(LOGERROR, "get_pts_video: open /tsync/event error");
+  return -1;
+}
+
 static vformat_t codecid_to_vformat(enum AVCodecID id)
 {
   vformat_t format;
@@ -362,20 +381,18 @@ bool CLinuxC1Codec::OpenDecoder(CDVDStreamInfo &hints) {
   m_speed = DVD_PLAYSPEED_NORMAL;
   m_1st_pts = 0;
   m_cur_pts = 0;
-/*
   m_cur_pictcnt = 0;
   m_old_pictcnt = 0;
+/*
   m_dst_rect.SetRect(0, 0, 0, 0);
   m_zoom = -1;
   m_contrast = -1;
   m_brightness = -1;
   m_vbufsize = 500000 * 2;
+*/
   m_start_dts = 0;
   m_start_pts = 0;
- */
   m_hints = hints;
-
-  ShowMainVideo(false);
 
   memzero(*am_private);
   am_private->stream_type      = AM_STREAM_ES;
@@ -561,6 +578,8 @@ bool CLinuxC1Codec::OpenDecoder(CDVDStreamInfo &hints) {
 
   SetSpeed(m_speed);
 
+  ShowMainVideo(true);
+
   return true;
 }
 
@@ -655,10 +674,118 @@ double CLinuxC1Codec::GetPlayerPtsSeconds()
   return clock_pts;
 }
 
-int CLinuxC1Codec::Decode(uint8_t *pData, size_t size, double dts, double pts) {
+int CLinuxC1Codec::Decode(uint8_t *pData, size_t iSize, double dts, double pts) {
+  // grr, m_RenderUpdateCallBackFn in g_renderManager is NULL'ed during
+  // g_renderManager.Configure call by player, which happens after the codec
+  // OpenDecoder call. So we need to restore it but it does not seem to stick :)
+  //g_renderManager.RegisterRenderUpdateCallBack((const void*)this, RenderUpdateCallBack);
 
-  return VC_PICTURE | VC_BUFFER;
+  if (pData)
+  {
+    am_private->am_pkt.data = pData;
+    am_private->am_pkt.data_size = iSize;
 
+    am_private->am_pkt.newflag    = 1;
+    am_private->am_pkt.isvalid    = 1;
+    am_private->am_pkt.avduration = 0;
+
+    // handle pts, including 31bit wrap, aml can only handle 31
+    // bit pts as it uses an int in kernel.
+    if (m_hints.ptsinvalid || pts == DVD_NOPTS_VALUE)
+      am_private->am_pkt.avpts = AV_NOPTS_VALUE;
+    else
+    {
+      am_private->am_pkt.avpts = 0.5 + (pts * PTS_FREQ) / DVD_TIME_BASE;\
+      if (!m_start_pts && am_private->am_pkt.avpts >= 0x7fffffff)
+        m_start_pts = am_private->am_pkt.avpts & ~0x0000ffff;
+    }
+    if (am_private->am_pkt.avpts != (int64_t)AV_NOPTS_VALUE)
+      am_private->am_pkt.avpts -= m_start_pts;
+
+
+    // handle dts, including 31bit wrap, aml can only handle 31
+    // bit dts as it uses an int in kernel.
+    if (dts == DVD_NOPTS_VALUE)
+      am_private->am_pkt.avdts = AV_NOPTS_VALUE;
+    else
+    {
+      am_private->am_pkt.avdts = 0.5 + (dts * PTS_FREQ) / DVD_TIME_BASE;
+      if (!m_start_dts && am_private->am_pkt.avdts >= 0x7fffffff)
+        m_start_dts = am_private->am_pkt.avdts & ~0x0000ffff;
+    }
+    if (am_private->am_pkt.avdts != (int64_t)AV_NOPTS_VALUE)
+      am_private->am_pkt.avdts -= m_start_dts;
+
+    //CLog::Log(LOGDEBUG, "CAMLCodec::Decode: iSize(%d), dts(%f), pts(%f), avdts(%llx), avpts(%llx)",
+    //  iSize, dts, pts, am_private->am_pkt.avdts, am_private->am_pkt.avpts);
+
+    // some formats need header/data tweaks.
+    // the actual write occurs once in write_av_packet
+    // and is controlled by am_pkt.newflag.
+    //set_header_info(am_private);
+
+    // loop until we write all into codec, am_pkt.isvalid
+    // will get set to zero once everything is consumed.
+    // PLAYER_SUCCESS means all is ok, not all bytes were written.
+    while (am_private->am_pkt.isvalid)
+    {
+      // abort on any errors.
+      if (write_av_packet(am_private, &am_private->am_pkt) != PLAYER_SUCCESS)
+        break;
+
+      if (am_private->am_pkt.isvalid)
+        CLog::Log(LOGDEBUG, "CAMLCodec::Decode: write_av_packet looping");
+    }
+
+    // if we seek, then GetTimeSize is wrong as
+    // reports lastpts - cur_pts and hw decoder has
+    // not started outputing new pts values yet.
+    // so we grab the 1st pts sent into driver and
+    // use that to calc GetTimeSize.
+    if (m_1st_pts == 0)
+      m_1st_pts = am_private->am_pkt.lastpts;
+  }
+/*
+  // if we have still frames, demux size will be small
+  // and we need to pre-buffer more.
+  double target_timesize = 1.0;
+  if (iSize < 20)
+    target_timesize = 2.0;
+
+  // keep hw buffered demux above 1 second
+  if (GetTimeSize() < target_timesize && m_speed == DVD_PLAYSPEED_NORMAL)
+    return VC_BUFFER;
+*/
+/*
+  // wait until we get a new frame or 25ms,
+  if (m_old_pictcnt == m_cur_pictcnt)
+    m_ready_event.WaitMSec(25);
+*/
+  int64_t pts_video = 0;
+  int rtn = 0;
+  pts_video = get_pts_video();
+  if (pts_video != m_cur_pts) {
+    m_cur_pts = pts_video;
+    m_cur_pictcnt++;
+    m_old_pictcnt++;
+    rtn = VC_PICTURE;
+    /*
+    // we got a new pict, try and keep hw buffered demux above 2 seconds.
+    // this, combined with the above 1 second check, keeps hw buffered demux between 1 and 2 seconds.
+    // we also check to make sure we keep from filling hw buffer.
+    if (GetTimeSize() < 2.0 && GetDataSize() < m_vbufsize/3)
+      rtn |= VC_BUFFER;
+    */
+  } else {
+    rtn = VC_BUFFER;
+    usleep(1000*17);
+  }
+/*
+  CLog::Log(LOGDEBUG, "CAMLCodec::Decode: "
+    "rtn(%d), m_cur_pictcnt(%lld), m_cur_pts(%f), lastpts(%f), GetTimeSize(%f), GetDataSize(%d)",
+    rtn, m_cur_pictcnt, (float)m_cur_pts/PTS_FREQ, (float)am_private->am_pkt.lastpts/PTS_FREQ, GetTimeSize(), GetDataSize());
+*/
+  return rtn;
 }
 
 void CLinuxC1Codec::Reset() {
