@@ -82,14 +82,11 @@ int main(int argc, char** argv) {
 
   m_cHints = new CDVDStreamInfo();
   m_cHints->software = false;
-
-  av_read_frame(formatCtx, &packet);
-
-  CLog::Log(LOGDEBUG, "%s::%s - Extracted header of size %d", CLASSNAME, __func__, packet.size);
-
-  m_cHints->extradata = packet.data;
-  m_cHints->extrasize = packet.size;
+  m_cHints->extradata = codecCtx->extradata;
+  m_cHints->extrasize = codecCtx->extradata_size;
   m_cHints->codec = codec->id;
+
+  CLog::Log(LOGDEBUG, "%s::%s - Header of size %d", CLASSNAME, __func__, codecCtx->extradata_size);
 
   CDVDCodecOptions options;
 
