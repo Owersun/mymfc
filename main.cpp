@@ -101,7 +101,6 @@ int main(int argc, char** argv) {
   // MAIN LOOP
 
   int frameNumber = 0;
-  unsigned int frameSize = 0;
   int ret = 0;
   m_pDvdVideoPicture = new DVDVideoPicture();
 
@@ -109,18 +108,20 @@ int main(int argc, char** argv) {
 
   do {
 
-    av_free_packet(&packet);
     ret = av_read_frame(formatCtx, &packet);
     if (ret < 0) {
       CLog::Log(LOGNOTICE, "%s::%s - Parser has extracted all frames", CLASSNAME, __func__);
       break;
     }
+    frameNumber++;
 
-    CLog::Log(LOGDEBUG, "%s::%s - Extracted frame number %d of size %d", CLASSNAME, __func__, frameNumber, frameSize);
+    CLog::Log(LOGDEBUG, "%s::%s - Extracted frame number %d of size %d", CLASSNAME, __func__, frameNumber, packet.size);
 
     ret = m_cVideoCodec->Decode(packet.data, packet.size, packet.pts, packet.dts);
     if (ret | VC_PICTURE)
       m_cVideoCodec->GetPicture(m_pDvdVideoPicture);
+
+    av_free_packet(&packet);
 
   } while (ret | VC_BUFFER);
 
