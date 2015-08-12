@@ -109,7 +109,7 @@ bool CLinuxV4l2Sink::Init(CLinuxV4l2Sink *sink) {
   return true;
 }
 
-bool CLinuxV4l2Sink::SoftRestart() {
+void CLinuxV4l2Sink::SoftRestart() {
   StreamOn(VIDIOC_STREAMOFF);
 
   while (!iFreeBuffers.empty())

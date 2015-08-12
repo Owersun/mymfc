@@ -1,3 +1,5 @@
+#include "BitstreamConverter.h"
+
 #define BYTE unsigned char
 
 #define fast_memcpy memcpy
@@ -24,15 +26,6 @@
 #define VC_DROPPED  0x00000020  // needed to identify if a picture was dropped
 
 class CDVDCodecOptions {
-};
-
-enum AVCodecID {
-  AV_CODEC_ID_VC1 = 0,
-  AV_CODEC_ID_MPEG1VIDEO,
-  AV_CODEC_ID_MPEG2VIDEO,
-  AV_CODEC_ID_MPEG4,
-  AV_CODEC_ID_H263,
-  AV_CODEC_ID_H264,
 };
 
 enum ERenderFormat {
@@ -111,15 +104,5 @@ public:
     memset(pDvdVideoPicture, 0, sizeof(DVDVideoPicture));
     return true;
   }
-};
-
-class CBitstreamConverter {
-public:
-  bool              Open(enum AVCodecID codec, uint8_t *in_extradata, int in_extrasize, bool to_annexb) { return false; };
-  bool              Convert(uint8_t *pData, int iSize) { return true; };
-  uint8_t*          GetConvertBuffer(void) const { return 0; };
-  int               GetConvertSize() const{ return 0; };
-  uint8_t*          GetExtraData(void) const { return 0; };
-  int               GetExtraSize() const { return 0; };
 };
 

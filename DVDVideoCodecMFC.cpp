@@ -494,11 +494,12 @@ int CDVDVideoCodecMFC::Decode(BYTE* pData, int iSize, double dts, double pts) {
   }
 
   // Get a buffer from MFC Capture
-  if (!m_MFCCapture->DequeueBuffer(m_Buffer))
+  if (!m_MFCCapture->DequeueBuffer(m_Buffer)) {
     if (errno == EAGAIN)
       return VC_BUFFER;
     else
       return VC_ERROR;
+  }
 
   if (m_bDropPictures) {
 
@@ -516,11 +517,12 @@ int CDVDVideoCodecMFC::Decode(BYTE* pData, int iSize, double dts, double pts) {
       return VC_FLUSHED; // FIMC unrecoverable error, reset needed
     }
     // Get a buffer from FIMC Capture
-    if (!m_FIMCCapture->DequeueBuffer(m_Buffer))
+    if (!m_FIMCCapture->DequeueBuffer(m_Buffer)) {
       if (errno == EAGAIN)
         return VC_BUFFER;
       else
         return VC_ERROR;
+    }
   }
 
   // We got a new buffer to show, so we can enqeue back the buffer wich was on screen
