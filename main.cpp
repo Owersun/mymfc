@@ -106,9 +106,11 @@ int main(int argc, char** argv) {
 
   clock_gettime(CLOCK_REALTIME, &startTs);
 
-  do {
+  while (av_read_frame(formatCtx, &packet) >= 0) {
 
-    ret = av_read_frame(formatCtx, &packet);
+    if (packet.stream_index != videoStream)
+      continue;
+
     if (ret < 0) {
       CLog::Log(LOGNOTICE, "%s::%s - Parser has extracted all frames", CLASSNAME, __func__);
       break;
@@ -123,7 +125,7 @@ int main(int argc, char** argv) {
 
     av_free_packet(&packet);
 
-  } while (ret | VC_BUFFER);
+  }
 
   CLog::Log(LOGNOTICE, "%s::%s - ===STOP===", CLASSNAME, __func__);
 
