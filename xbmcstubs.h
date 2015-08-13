@@ -1,14 +1,10 @@
 #pragma once
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-  #include "libavcodec/avcodec.h"
-#ifdef __cplusplus
-}
-#endif
+#include "BitstreamConverter.h"
 
 #define BYTE unsigned char
+
+#define fast_memcpy memcpy
 
 #define DVD_NOPTS_VALUE    (-1LL<<52) // should be possible to represent in both double and int64_t
 
@@ -130,16 +126,6 @@ public:
   }
 };
 
-class CBitstreamConverter {
-public:
-  bool              Open(enum AVCodecID codec, uint8_t *in_extradata, int in_extrasize, bool to_annexb) { return false; };
-  bool              Convert(uint8_t *pData, int iSize) { return true; };
-  uint8_t*          GetConvertBuffer(void) const { return 0; };
-  int               GetConvertSize() const{ return 0; };
-  uint8_t*          GetExtraData(void) const { return 0; };
-  int               GetExtraSize() const { return 0; };
-};
-
 #define aml_permissions() true
 
 class SysfsUtils {
@@ -162,3 +148,4 @@ public:
     return ret;
   }
 };
+

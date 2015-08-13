@@ -1,13 +1,14 @@
-CC=g++
-HEADERS = system.h main.h parser.h xbmcstubs.h Log.h LinuxC1Codec.h DVDVideoCodecC1.h
-OBJ = main.o DVDVideoCodecC1.o LinuxC1Codec.o parser.o Log.o
-CPPFLAGS= -g
+CXX = g++
+HEADERS = system.h main.h xbmcstubs.h LinuxC1Codec.h Log.h BitstreamConverter.h DVDVideoCodecC1.h
+OBJ = main.o LinuxC1Codec.o Log.o BitstreamConverter.o DVDVideoCodecC1.o
+CXXFLAGS = -g -Wall
+LIBS = -lavformat -lavcodec -lavutil -L/usr/lib/aml_libs -lamcodec -lamadec -lasound -lamavutils
 
 %.o: %.cpp $(HEADERS)
-	$(CC) $(CPPFLAGS) -o $@ -c $<
+	$(CXX) -o $@ -c $< $(CXXFLAGS)
 
 mymfc: $(OBJ)
-	$(CC) $(CPPFLAGS) -o $@ $^ -L/usr/lib/aml_libs -lamcodec -lamadec -lasound -lamavutils
+	$(CXX) -o $@ $^ $(LIBS)
 
 clean:
 	-rm -f $(OBJ)
