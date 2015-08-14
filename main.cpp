@@ -45,35 +45,36 @@ int main(int argc, char** argv) {
   av_register_all();
 
   if (avformat_open_input(&formatCtx, vidPath, NULL, NULL) != 0) {
-		CLog::Log(LOGERROR, "%s::%s - avformat_open_input() unable to open: %s", CLASSNAME, __func__, vidPath);
+    CLog::Log(LOGERROR, "%s::%s - avformat_open_input() unable to open: %s", CLASSNAME, __func__, vidPath);
     return false;
   }
   CLog::Log(LOGDEBUG, "%s::%s - video file: %s", CLASSNAME, __func__, vidPath);
 
   if (avformat_find_stream_info(formatCtx, NULL) < 0) {
-		CLog::Log(LOGERROR, "%s::%s - avformat_find_stream_info() failed.", CLASSNAME, __func__);
+    CLog::Log(LOGERROR, "%s::%s - avformat_find_stream_info() failed.", CLASSNAME, __func__);
     return false;
   }
 
   for (unsigned int i = 0; i < formatCtx->nb_streams; ++i)
-		if (formatCtx->streams[i]->codec->codec_type == AVMEDIA_TYPE_VIDEO) {
-			videoStream = i;
-			break;
-		}
-	if (videoStream == -1) {
+    if (formatCtx->streams[i]->codec->codec_type == AVMEDIA_TYPE_VIDEO) {
+      videoStream = i;
+      break;
+    }
+
+  if (videoStream == -1) {
     CLog::Log(LOGERROR, "%s::%s - Unable to find video stream in the file.", CLASSNAME, __func__);
     return false;
   }
   CLog::Log(LOGDEBUG, "%s::%s - Video stream in the file is stream number %d", CLASSNAME, __func__, videoStream);
 
   codecCtx = formatCtx->streams[videoStream]->codec;
-	codec = avcodec_find_decoder(codecCtx->codec_id);
-	if (codec == NULL) {
-		CLog::Log(LOGERROR, "%s::%s - Unsupported codec.", CLASSNAME, __func__);
+  codec = avcodec_find_decoder(codecCtx->codec_id);
+  if (codec == NULL) {
+    CLog::Log(LOGERROR, "%s::%s - Unsupported codec.", CLASSNAME, __func__);
     return false;
   }
-	if (avcodec_open2(codecCtx, codec, NULL) < 0) {
-		CLog::Log(LOGERROR, "%s::%s - Unable to open codec.", CLASSNAME, __func__);
+  if (avcodec_open2(codecCtx, codec, NULL) < 0) {
+    CLog::Log(LOGERROR, "%s::%s - Unable to open codec.", CLASSNAME, __func__);
     return false;
   }
   CLog::Log(LOGDEBUG, "%s::%s - AVCodec: %s, id %d", CLASSNAME, __func__, codec->name, codec->id);
