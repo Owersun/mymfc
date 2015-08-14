@@ -147,5 +147,23 @@ public:
 
     return ret;
   }
-};
+  static int GetInt(const std::string& path, int& val)
+  {
+    int fd = open(path.c_str(), O_RDONLY);
+    int ret = 0;
+    if (fd >= 0)
+    {
+      char bcmd[16];
+      if (read(fd, bcmd, sizeof(bcmd)) < 0)
+        ret = -1;
+      else
+        val = strtol(bcmd, NULL, 16);
 
+      close(fd);
+    }
+    if (ret)
+      CLog::Log(LOGERROR, "%s: error reading %s",__FUNCTION__, path.c_str());
+
+    return ret;
+  }
+};

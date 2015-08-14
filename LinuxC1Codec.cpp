@@ -127,7 +127,7 @@ int check_in_pts(am_private_t *para, am_packet_t *pkt)
             pts = pkt->avpts;
 
             if (codec_checkin_pts(pkt->codec, pts) != 0) {
-                CLog::Log(LOGDEBUG, "ERROR check in pts error!");
+                CLog::Log(LOGERROR, "ERROR check in pts error!");
                 return PLAYER_PTS_ERROR;
             }
 
@@ -135,7 +135,7 @@ int check_in_pts(am_private_t *para, am_packet_t *pkt)
             pts = pkt->avdts * last_duration;
 
             if (codec_checkin_pts(pkt->codec, pts) != 0) {
-                CLog::Log(LOGDEBUG, "ERROR check in dts error!");
+                CLog::Log(LOGERROR, "ERROR check in dts error!");
                 return PLAYER_PTS_ERROR;
             }
 
@@ -143,7 +143,7 @@ int check_in_pts(am_private_t *para, am_packet_t *pkt)
         } else {
             if (!para->check_first_pts) {
                 if (codec_checkin_pts(pkt->codec, 0) != 0) {
-                    CLog::Log(LOGDEBUG, "ERROR check in 0 to video pts error!");
+                    CLog::Log(LOGERROR, "ERROR check in 0 to video pts error!");
                     return PLAYER_PTS_ERROR;
                 }
             }
@@ -377,19 +377,13 @@ CLinuxC1Codec::~CLinuxC1Codec() {
 }
 
 bool CLinuxC1Codec::OpenDecoder(CDVDStreamInfo &hints) {
-  CLog::Log(LOGDEBUG, "CLinuxC1Codec::OpenDecoder");
+  CLog::Log(LOGDEBUG, "%s::%s", CLASSNAME, __func__);
+
   m_speed = DVD_PLAYSPEED_NORMAL;
   m_1st_pts = 0;
   m_cur_pts = 0;
   m_cur_pictcnt = 0;
   m_old_pictcnt = 0;
-/*
-  m_dst_rect.SetRect(0, 0, 0, 0);
-  m_zoom = -1;
-  m_contrast = -1;
-  m_brightness = -1;
-  m_vbufsize = 500000 * 2;
-*/
   m_start_dts = 0;
   m_start_pts = 0;
   m_hints = hints;
@@ -403,11 +397,10 @@ bool CLinuxC1Codec::OpenDecoder(CDVDStreamInfo &hints) {
   am_private->video_pid        = hints.pid;
 
   // handle video ratio
-/*
   AVRational video_ratio       = av_d2q(1, SHRT_MAX);
   am_private->video_ratio      = ((int32_t)video_ratio.num << 16) | video_ratio.den;
   am_private->video_ratio64    = ((int64_t)video_ratio.num << 32) | video_ratio.den;
-*/
+
   // handle video rate
   if (hints.rfpsrate > 0 && hints.rfpsscale != 0)
   {
@@ -462,17 +455,10 @@ bool CLinuxC1Codec::OpenDecoder(CDVDStreamInfo &hints) {
         am_private->video_format = VFORMAT_H264_4K2K;
       }
   }
-  switch (am_private->video_format)
-  {
-    default:
-      am_private->extrasize       = hints.extrasize;
-      am_private->extradata       = (uint8_t*)malloc(hints.extrasize);
-      memcpy(am_private->extradata, hints.extradata, hints.extrasize);
-      break;
-    case VFORMAT_REAL:
-    case VFORMAT_MPEG12:
-      break;
-  }
+
+  am_private->extrasize       = hints.extrasize;
+  am_private->extradata       = (uint8_t*)malloc(hints.extrasize);
+  memcpy(am_private->extradata, hints.extradata, hints.extrasize);
 
   if (am_private->stream_type == AM_STREAM_ES && am_private->video_codec_tag != 0)
     am_private->video_codec_type = codec_tag_to_vdec_type(am_private->video_codec_tag);
@@ -481,13 +467,12 @@ bool CLinuxC1Codec::OpenDecoder(CDVDStreamInfo &hints) {
 
   am_private->flv_flag = 0;
 
-  CLog::Log(LOGDEBUG, "CAMLCodec::OpenDecoder "
-    "hints.width(%d), hints.height(%d), hints.codec(%d), hints.codec_tag(%d), hints.pid(%d)",
-    hints.width, hints.height, hints.codec, hints.codec_tag, hints.pid);
-  CLog::Log(LOGDEBUG, "CAMLCodec::OpenDecoder hints.fpsrate(%d), hints.fpsscale(%d), hints.rfpsrate(%d), hints.rfpsscale(%d), video_rate(%d)",
-    hints.fpsrate, hints.fpsscale, hints.rfpsrate, hints.rfpsscale, am_private->video_rate);
-  CLog::Log(LOGDEBUG, "CAMLCodec::OpenDecoder hints.orientation(%d), hints.forced_aspect(%d), hints.extrasize(%d)",
-    hints.orientation, hints.forced_aspect, hints.extrasize);
+  CLog::Log(LOGDEBUG, "%s::%s hints.width(%d), hints.height(%d), hints.codec(%d), hints.codec_tag(%d), hints.pid(%d)",
+    CLASSNAME, __func__, hints.width, hints.height, hints.codec, hints.codec_tag, hints.pid);
+  CLog::Log(LOGDEBUG, "%s::%s hints.fpsrate(%d), hints.fpsscale(%d), hints.rfpsrate(%d), hints.rfpsscale(%d), video_rate(%d)",
+    CLASSNAME, __func__, hints.fpsrate, hints.fpsscale, hints.rfpsrate, hints.rfpsscale, am_private->video_rate);
+  CLog::Log(LOGDEBUG, "%s::%s hints.orientation(%d), hints.forced_aspect(%d), hints.extrasize(%d)",
+    CLASSNAME, __func__, hints.orientation, hints.forced_aspect, hints.extrasize);
 
   // default video codec params
   am_private->gcodec.noblock     = 0;
@@ -536,7 +521,7 @@ bool CLinuxC1Codec::OpenDecoder(CDVDStreamInfo &hints) {
   int ret = codec_init(&am_private->vcodec);
   if (ret != CODEC_ERROR_NONE)
   {
-    CLog::Log(LOGDEBUG, "CAMLCodec::OpenDecoder codec init failed, ret=0x%x", -ret);
+    CLog::Log(LOGERROR, "%s::%s codec init failed, ret=0x%x", CLASSNAME, __func__, -ret);
     return false;
   }
 
@@ -552,30 +537,6 @@ bool CLinuxC1Codec::OpenDecoder(CDVDStreamInfo &hints) {
   am_private->am_pkt.codec = &am_private->vcodec;
   pre_header_feeding(am_private, &am_private->am_pkt);
 
-//  Create();
-
-/*
-  g_renderManager.RegisterRenderUpdateCallBack((const void*)this, RenderUpdateCallBack);
-  g_renderManager.RegisterRenderFeaturesCallBack((const void*)this, RenderFeaturesCallBack);
-
-  m_display_rect = CRect(0, 0, CDisplaySettings::Get().GetCurrentResolutionInfo().iWidth, CDisplaySettings::Get().GetCurrentResolutionInfo().iHeight);
-
-  std::string strScaler;
-  SysfsUtils::GetString("/sys/class/ppmgr/ppscaler", strScaler);
-  if (strScaler.find("enabled") == std::string::npos)     // Scaler not enabled, use screen size
-    m_display_rect = CRect(0, 0, CDisplaySettings::Get().GetCurrentResolutionInfo().iScreenWidth, CDisplaySettings::Get().GetCurrentResolutionInfo().iScreenHeight);
-*/
-/*
-  // if display is set to 1080xxx, then disable deinterlacer for HD content
-  // else bandwidth usage is too heavy and it will slow down video decoder.
-  char display_mode[256] = {0};
-  SysfsUtils::GetString("/sys/class/display/mode", display_mode, 255);
-  if (strstr(display_mode,"1080"))
-    SysfsUtils::SetInt("/sys/module/di/parameters/bypass_all", 1);
-  else
-    SysfsUtils::SetInt("/sys/module/di/parameters/bypass_all", 0);
-*/
-
   SetSpeed(m_speed);
 
   ShowMainVideo(true);
@@ -590,7 +551,7 @@ void CLinuxC1Codec::ShowMainVideo(const bool show)
 
 void CLinuxC1Codec::SetSpeed(int speed)
 {
-  CLog::Log(LOGDEBUG, "CAMLCodec::SetSpeed, speed(%d)", speed);
+  CLog::Log(LOGDEBUG, "%s::%s", CLASSNAME, __func__);
 
   m_speed = speed;
 
@@ -616,6 +577,8 @@ void CLinuxC1Codec::SetSpeed(int speed)
 
 bool CLinuxC1Codec::GetPicture(DVDVideoPicture *pDvdVideoPicture)
 {
+  CLog::Log(LOGDEBUG, "%s::%s", CLASSNAME, __func__);
+
   pDvdVideoPicture->iFlags = DVP_FLAG_ALLOCATED;
   pDvdVideoPicture->format = RENDER_FMT_BYPASS;
   pDvdVideoPicture->iDuration = (double)(am_private->video_rate * DVD_TIME_BASE) / UNIT_FREQ;
@@ -641,11 +604,8 @@ bool CLinuxC1Codec::GetPicture(DVDVideoPicture *pDvdVideoPicture)
 }
 
 void CLinuxC1Codec::CloseDecoder() {
-  CLog::Log(LOGDEBUG, "CLinuxC1Codec::CloseDecoder");
-/*
-  g_renderManager.RegisterRenderUpdateCallBack((const void*)NULL, NULL);
-  g_renderManager.RegisterRenderFeaturesCallBack((const void*)NULL, NULL);
-*/
+  CLog::Log(LOGDEBUG, "%s::%s", CLASSNAME, __func__);
+
   // never leave vcodec ff/rw or paused.
   if (m_speed != DVD_PLAYSPEED_NORMAL)
   {
@@ -666,19 +626,16 @@ void CLinuxC1Codec::CloseDecoder() {
 double CLinuxC1Codec::GetPlayerPtsSeconds()
 {
   double clock_pts = 0.0;
-/*
+#ifndef THIS_IS_NOT_XBMC
   CDVDClock *playerclock = CDVDClock::GetMasterClock();
   if (playerclock)
     clock_pts = playerclock->GetClock() / DVD_TIME_BASE;
-*/
+#endif
   return clock_pts;
 }
 
 int CLinuxC1Codec::Decode(uint8_t *pData, size_t iSize, double dts, double pts) {
-  // grr, m_RenderUpdateCallBackFn in g_renderManager is NULL'ed during
-  // g_renderManager.Configure call by player, which happens after the codec
-  // OpenDecoder call. So we need to restore it but it does not seem to stick :)
-  //g_renderManager.RegisterRenderUpdateCallBack((const void*)this, RenderUpdateCallBack);
+  CLog::Log(LOGDEBUG, "%s::%s", CLASSNAME, __func__);
 
   if (pData)
   {
@@ -716,17 +673,9 @@ int CLinuxC1Codec::Decode(uint8_t *pData, size_t iSize, double dts, double pts) 
     if (am_private->am_pkt.avdts != (int64_t)AV_NOPTS_VALUE)
       am_private->am_pkt.avdts -= m_start_dts;
 
-    //CLog::Log(LOGDEBUG, "CAMLCodec::Decode: iSize(%d), dts(%f), pts(%f), avdts(%llx), avpts(%llx)",
-    //  iSize, dts, pts, am_private->am_pkt.avdts, am_private->am_pkt.avpts);
+    debug_log(LOGDEBUG, "CAMLCodec::Decode: iSize(%d), dts(%f), pts(%f), avdts(%llx), avpts(%llx)",
+      iSize, dts, pts, am_private->am_pkt.avdts, am_private->am_pkt.avpts);
 
-    // some formats need header/data tweaks.
-    // the actual write occurs once in write_av_packet
-    // and is controlled by am_pkt.newflag.
-    //set_header_info(am_private);
-
-    // loop until we write all into codec, am_pkt.isvalid
-    // will get set to zero once everything is consumed.
-    // PLAYER_SUCCESS means all is ok, not all bytes were written.
     while (am_private->am_pkt.isvalid)
     {
       // abort on any errors.
@@ -745,22 +694,7 @@ int CLinuxC1Codec::Decode(uint8_t *pData, size_t iSize, double dts, double pts) 
     if (m_1st_pts == 0)
       m_1st_pts = am_private->am_pkt.lastpts;
   }
-/*
-  // if we have still frames, demux size will be small
-  // and we need to pre-buffer more.
-  double target_timesize = 1.0;
-  if (iSize < 20)
-    target_timesize = 2.0;
 
-  // keep hw buffered demux above 1 second
-  if (GetTimeSize() < target_timesize && m_speed == DVD_PLAYSPEED_NORMAL)
-    return VC_BUFFER;
-*/
-/*
-  // wait until we get a new frame or 25ms,
-  if (m_old_pictcnt == m_cur_pictcnt)
-    m_ready_event.WaitMSec(25);
-*/
   int64_t pts_video = 0;
   int rtn = 0;
   pts_video = get_pts_video();
@@ -769,25 +703,42 @@ int CLinuxC1Codec::Decode(uint8_t *pData, size_t iSize, double dts, double pts) 
     m_cur_pictcnt++;
     m_old_pictcnt++;
     rtn = VC_PICTURE;
-    /*
-    // we got a new pict, try and keep hw buffered demux above 2 seconds.
-    // this, combined with the above 1 second check, keeps hw buffered demux between 1 and 2 seconds.
-    // we also check to make sure we keep from filling hw buffer.
-    if (GetTimeSize() < 2.0 && GetDataSize() < m_vbufsize/3)
-      rtn |= VC_BUFFER;
-    */
   } else {
     rtn = VC_BUFFER;
     usleep(1000*17);
   }
-/*
-  CLog::Log(LOGDEBUG, "CAMLCodec::Decode: "
-    "rtn(%d), m_cur_pictcnt(%lld), m_cur_pts(%f), lastpts(%f), GetTimeSize(%f), GetDataSize(%d)",
-    rtn, m_cur_pictcnt, (float)m_cur_pts/PTS_FREQ, (float)am_private->am_pkt.lastpts/PTS_FREQ, GetTimeSize(), GetDataSize());
-*/
+
+  debug_log(LOGDEBUG, "CAMLCodec::Decode: "
+    "rtn(%d), m_cur_pictcnt(%lld), m_cur_pts(%f), lastpts(%f)",
+    rtn, m_cur_pictcnt, (float)m_cur_pts/PTS_FREQ, (float)am_private->am_pkt.lastpts/PTS_FREQ);
+
   return rtn;
 }
 
 void CLinuxC1Codec::Reset() {
-  CLog::Log(LOGDEBUG, "CLinuxC1Codec::Reset");
+  CLog::Log(LOGDEBUG, "%s::%s", CLASSNAME, __func__);
+
+  int blackout_policy;
+  SysfsUtils::GetInt("/sys/class/video/blackout_policy", blackout_policy);
+  SysfsUtils::SetInt("/sys/class/video/blackout_policy", 0);
+
+  if (m_speed != DVD_PLAYSPEED_NORMAL)
+  {
+    codec_resume(&am_private->vcodec);
+    codec_set_cntl_mode(&am_private->vcodec, TRICKMODE_NONE);
+  }
+  codec_reset(&am_private->vcodec);
+
+  am_packet_release(&am_private->am_pkt);
+  memzero(*am_private);
+  am_private->am_pkt.codec = &am_private->vcodec;
+  pre_header_feeding(am_private, &am_private->am_pkt);
+
+  SysfsUtils::SetInt("/sys/class/video/blackout_policy", blackout_policy);
+
+  m_1st_pts = 0;
+  m_cur_pts = 0;
+  m_cur_pictcnt = 0;
+  m_old_pictcnt = 0;
+  SetSpeed(m_speed);
 }
