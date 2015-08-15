@@ -409,7 +409,7 @@ bool CLinuxC1Codec::OpenDecoder(CDVDStreamInfo &hints) {
   // incorrectly reported as 50 fps (yes, video_rate == 1920)
   if (hints.width == 1920 && am_private->video_rate == 1920)
   {
-    CLog::Log(LOGDEBUG, "CAMLCodec::OpenDecoder video_rate exception");
+    CLog::Log(LOGDEBUG, "%s::%s video_rate exception", CLASSNAME, __func__);
     am_private->video_rate = 0.5 + (float)UNIT_FREQ * 1001 / 25000;
   }
 
@@ -417,7 +417,7 @@ bool CLinuxC1Codec::OpenDecoder(CDVDStreamInfo &hints) {
   // mp4/avi containers :(
   if (hints.codec == AV_CODEC_ID_H264 && hints.width <= 720 && am_private->video_rate == 1602)
   {
-    CLog::Log(LOGDEBUG, "CAMLCodec::OpenDecoder video_rate exception");
+    CLog::Log(LOGDEBUG, "%s::%s video_rate exception", CLASSNAME, __func__);
     am_private->video_rate = 0.5 + (float)UNIT_FREQ * 1001 / 24000;
   }
 
@@ -427,7 +427,7 @@ bool CLinuxC1Codec::OpenDecoder(CDVDStreamInfo &hints) {
   {
     if (am_private->video_rate >= 3200 && am_private->video_rate <= 3210)
     {
-      CLog::Log(LOGDEBUG, "CAMLCodec::OpenDecoder video_rate exception");
+      CLog::Log(LOGDEBUG, "%s::%s video_rate exception", CLASSNAME, __func__);
       am_private->video_rate = 0.5 + (float)UNIT_FREQ * 1001 / 24000;
     }
   }
@@ -440,12 +440,13 @@ bool CLinuxC1Codec::OpenDecoder(CDVDStreamInfo &hints) {
     am_private->video_rotation_degree = 2;
   else if (hints.orientation == 270)
     am_private->video_rotation_degree = 3;
+
   // handle extradata
   am_private->video_format      = codecid_to_vformat(hints.codec);
   if (am_private->video_format == VFORMAT_H264) {
-      if (hints.width > 1920 || hints.height > 1088) {
-        am_private->video_format = VFORMAT_H264_4K2K;
-      }
+    if (hints.width > 1920 || hints.height > 1088) {
+      am_private->video_format = VFORMAT_H264_4K2K;
+    }
   }
 
   am_private->extrasize       = hints.extrasize;
@@ -665,8 +666,8 @@ int CLinuxC1Codec::Decode(uint8_t *pData, size_t iSize, double dts, double pts) 
     if (am_private->am_pkt.avdts != (int64_t)AV_NOPTS_VALUE)
       am_private->am_pkt.avdts -= m_start_dts;
 
-    debug_log(LOGDEBUG, "CAMLCodec::Decode: iSize(%d), dts(%f), pts(%f), avdts(%llx), avpts(%llx)",
-      iSize, dts, pts, am_private->am_pkt.avdts, am_private->am_pkt.avpts);
+    debug_log(LOGDEBUG, "%s::%s: iSize(%d), dts(%f), pts(%f), avdts(%llx), avpts(%llx)",
+      CLASSNAME, __func__, iSize, dts, pts, am_private->am_pkt.avdts, am_private->am_pkt.avpts);
 
     while (am_private->am_pkt.isvalid)
     {
@@ -675,7 +676,7 @@ int CLinuxC1Codec::Decode(uint8_t *pData, size_t iSize, double dts, double pts) 
         break;
 
       if (am_private->am_pkt.isvalid)
-        CLog::Log(LOGDEBUG, "CAMLCodec::Decode: write_av_packet looping");
+        CLog::Log(LOGDEBUG, "%s::%s: write_av_packet looping", CLASSNAME, __func__);
     }
 
     // if we seek, then GetTimeSize is wrong as
@@ -688,21 +689,17 @@ int CLinuxC1Codec::Decode(uint8_t *pData, size_t iSize, double dts, double pts) 
   }
 
   int64_t pts_video = 0;
-  int rtn = 0;
+  int rtn = VC_BUFFER;
   pts_video = get_pts_video();
   if (pts_video != m_cur_pts) {
     m_cur_pts = pts_video;
     m_cur_pictcnt++;
     m_old_pictcnt++;
-    rtn = VC_PICTURE;
-  } else {
-    rtn = VC_BUFFER;
-    usleep(1000*17);
+    rtn |= VC_PICTURE;
   }
 
-  debug_log(LOGDEBUG, "CAMLCodec::Decode: "
-    "rtn(%d), m_cur_pictcnt(%lld), m_cur_pts(%f), lastpts(%f)",
-    rtn, m_cur_pictcnt, (float)m_cur_pts/PTS_FREQ, (float)am_private->am_pkt.lastpts/PTS_FREQ);
+  debug_log(LOGDEBUG, "%s::%s rtn(%d), m_cur_pictcnt(%lld), m_cur_pts(%f), lastpts(%f)",
+    CLASSNAME, __func__, rtn, m_cur_pictcnt, (float)m_cur_pts/PTS_FREQ, (float)am_private->am_pkt.lastpts/PTS_FREQ);
 
   return rtn;
 }

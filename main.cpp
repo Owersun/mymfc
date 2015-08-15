@@ -85,8 +85,11 @@ int main(int argc, char** argv) {
   m_cHints->software = false;
   m_cHints->extradata = codecCtx->extradata;
   m_cHints->extrasize = codecCtx->extradata_size;
-  m_cHints->codec = codec->id;
-
+  m_cHints->codec     = codecCtx->codec_id;
+  m_cHints->codec_tag = codecCtx->codec_tag;
+  m_cHints->width     = codecCtx->width;
+  m_cHints->height    = codecCtx->height;
+  
   CLog::Log(LOGDEBUG, "%s::%s - Header of size %d", CLASSNAME, __func__, codecCtx->extradata_size);
 
   CDVDCodecOptions options;
@@ -125,7 +128,7 @@ int main(int argc, char** argv) {
       m_cVideoCodec->GetPicture(m_pDvdVideoPicture);
 
     av_free_packet(&packet);
-
+    usleep(1000*17);
   }
 
   CLog::Log(LOGNOTICE, "%s::%s - ===STOP===", CLASSNAME, __func__);
