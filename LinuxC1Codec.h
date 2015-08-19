@@ -21,11 +21,16 @@ extern "C" {
 #endif
 
 #ifndef THIS_IS_NOT_XBMC
+  #include "DVDVideoCodec.h"
+  #include "DVDClock.h"
   #include "DVDStreamInfo.h"
   #include "utils/BitstreamConverter.h"
+  #include "utils/SysfsUtils.h"
 #else
   #include "xbmcstubs.h"
 #endif
+
+#define memzero(x) memset(&(x), 0, sizeof (x))
 
 #define PTS_FREQ        90000
 #define UNIT_FREQ       96000

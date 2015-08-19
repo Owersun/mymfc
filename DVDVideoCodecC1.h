@@ -4,13 +4,11 @@
   #include "DVDVideoCodec.h"
   #include "DVDStreamInfo.h"
   #include "utils/BitstreamConverter.h"
-  #include "xbmc/linux/LinuxC1Codec.h"
+  #include "LinuxC1Codec.h"
 #else
   #include "xbmcstubs.h"
   #include "LinuxC1Codec.h"
 #endif
-
-#define memzero(x) memset(&(x), 0, sizeof (x))
 
 typedef struct frame_queue {
   double dts;

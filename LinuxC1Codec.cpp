@@ -26,7 +26,7 @@ static int64_t get_pts_video()
     if (size > 0)
     {
       unsigned long pts = strtoul(pts_str, NULL, 16);
-      CLog::Log(LOGERROR, "get_pts_video: %lu", pts);
+      debug_log(LOGDEBUG, "get_pts_video: %lu", pts);
       return pts;
     }
   }
@@ -570,7 +570,7 @@ void CLinuxC1Codec::SetSpeed(int speed)
 
 bool CLinuxC1Codec::GetPicture(DVDVideoPicture *pDvdVideoPicture)
 {
-  CLog::Log(LOGDEBUG, "%s::%s", CLASSNAME, __func__);
+  debug_log(LOGDEBUG, "%s::%s", CLASSNAME, __func__);
 
   pDvdVideoPicture->iFlags = DVP_FLAG_ALLOCATED;
   pDvdVideoPicture->format = RENDER_FMT_BYPASS;
@@ -628,7 +628,7 @@ double CLinuxC1Codec::GetPlayerPtsSeconds()
 }
 
 int CLinuxC1Codec::Decode(uint8_t *pData, size_t iSize, double dts, double pts) {
-  CLog::Log(LOGDEBUG, "%s::%s", CLASSNAME, __func__);
+  debug_log(LOGDEBUG, "%s::%s", CLASSNAME, __func__);
 
   if (pData)
   {

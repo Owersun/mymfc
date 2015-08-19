@@ -27,7 +27,7 @@
 #ifdef CLASSNAME
 #undef CLASSNAME
 #endif
-#define CLASSNAME "CDVDVideoCodecMFC"
+#define CLASSNAME "CDVDVideoCodecC1"
 
 CDVDVideoCodecC1::CDVDVideoCodecC1() :
   m_Codec(NULL),
