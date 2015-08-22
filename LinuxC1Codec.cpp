@@ -380,7 +380,7 @@ bool CLinuxC1Codec::OpenDecoder(CDVDStreamInfo &hints) {
   m_start_pts = 0;
   m_hints = hints;
 
-  memzero(*am_private);
+  memzero(am_private->am_pkt);
   am_private->stream_type      = AM_STREAM_ES;
   am_private->video_width      = hints.width;
   am_private->video_height     = hints.height;
@@ -719,7 +719,7 @@ void CLinuxC1Codec::Reset() {
   codec_reset(&am_private->vcodec);
 
   am_packet_release(&am_private->am_pkt);
-  memzero(*am_private);
+  memzero(am_private->am_pkt);
   am_private->am_pkt.codec = &am_private->vcodec;
   pre_header_feeding(am_private, &am_private->am_pkt);
 
