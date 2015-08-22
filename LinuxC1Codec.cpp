@@ -532,6 +532,7 @@ bool CLinuxC1Codec::OpenDecoder(CDVDStreamInfo &hints) {
 
   SetSpeed(m_speed);
 
+  SetViewport(hints.width, hints.height);
   ShowMainVideo(true);
 
   return true;
@@ -610,6 +611,7 @@ void CLinuxC1Codec::CloseDecoder() {
   am_private->extradata = NULL;
   SysfsUtils::SetInt("/sys/class/tsync/enable", 1);
 
+  SetViewport(0, 0);
   ShowMainVideo(false);
   usleep(500 * 1000);
 }
@@ -730,3 +732,24 @@ void CLinuxC1Codec::Reset() {
   SetSpeed(m_speed);
 }
 
+void CLinuxC1Codec::SetViewport(int width, int height) {
+  char setting[256] = {};
+  double scale;
+  int displayWidth = CDisplaySettings::Get().GetCurrentResolutionInfo().iWidth;
+  int displayHeight = CDisplaySettings::Get().GetCurrentResolutionInfo().iHeight;
+  int cutWidth;
+  int cutHeight;
+
+  if (width > 0 && height > 0) {
+    scale = fmin((double)displayWidth / (double)width, (double)displayHeight / (double)height);
+    cutWidth = (displayWidth - (int)((double)width * scale)) / 2;
+    cutHeight = (displayHeight - (int)((double)height * scale)) / 2;
+    sprintf(setting, "%d %d %d %d", 0 + cutWidth, 0 + cutHeight, displayWidth - cutWidth, displayHeight - cutHeight);
+  } else {
+    sprintf(setting, "%d %d %d %d", 0, 0, 0, 0);
+  }
+
+  CLog::Log(LOGDEBUG, "%s::%s Setting viewport to %s", CLASSNAME, __func__, setting);
+  SysfsUtils::SetString("/sys/class/video/axis", setting);
+  SysfsUtils::SetInt("/sys/class/video/screen_mode", 1);
+}

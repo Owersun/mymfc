@@ -166,4 +166,40 @@ public:
 
     return ret;
   }
+  static int SetString(const std::string& path, const std::string& valstr)
+  {
+    int fd = open(path.c_str(), O_RDWR, 0644);
+    int ret = 0;
+    if (fd >= 0)
+    {
+      if (write(fd, valstr.c_str(), valstr.size()) < 0)
+        ret = -1;
+      close(fd);
+    }
+    if (ret)
+      CLog::Log(LOGERROR, "%s: error writing %s",__FUNCTION__, path.c_str());
+
+    return ret;
+  }
+};
+
+struct RESOLUTION_INFO {
+  int iWidth;
+  int iHeight;
+};
+
+class CDisplaySettings {
+public:
+  static CDisplaySettings& Get()
+  {
+    static CDisplaySettings sDisplaySettings;
+    return sDisplaySettings;
+  }
+  RESOLUTION_INFO& GetCurrentResolutionInfo() {
+    res.iWidth = 1920;
+    res.iHeight = 1080;
+    return res;
+  }
+private:
+  RESOLUTION_INFO res;
 };

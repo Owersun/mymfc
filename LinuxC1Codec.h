@@ -2,6 +2,7 @@
 
 #include <queue>
 #include <string>
+#include <math.h>
 #include <poll.h>
 
 #ifdef __cplusplus
@@ -24,6 +25,7 @@ extern "C" {
   #include "DVDVideoCodec.h"
   #include "DVDClock.h"
   #include "DVDStreamInfo.h"
+  #include "settings/DisplaySettings.h"
   #include "utils/BitstreamConverter.h"
   #include "utils/SysfsUtils.h"
 #else
@@ -141,15 +143,12 @@ public:
   CLinuxC1Codec();
   ~CLinuxC1Codec();
 
-  bool          OpenDecoder(CDVDStreamInfo &hints);
-  void          CloseDecoder();
-  int           Decode(uint8_t *pData, size_t size, double dts, double pts);
-  bool          GetPicture(DVDVideoPicture *pDvdVideoPicture);
-  void          Reset();
-
-  void          ShowMainVideo(const bool show);
-  void          SetSpeed(int speed);
-  double        GetPlayerPtsSeconds();
+  bool             OpenDecoder(CDVDStreamInfo &hints);
+  void             CloseDecoder();
+  int              Decode(uint8_t *pData, size_t size, double dts, double pts);
+  bool             GetPicture(DVDVideoPicture *pDvdVideoPicture);
+  void             Reset();
+  void             SetSpeed(int speed);
 
 private:
   volatile int     m_speed;
@@ -161,4 +160,8 @@ private:
   volatile int64_t m_old_pictcnt;
   int64_t          m_start_dts;
   int64_t          m_start_pts;
+
+  void             SetViewport(int width, int height);
+  double           GetPlayerPtsSeconds();
+  void             ShowMainVideo(const bool show);
 };

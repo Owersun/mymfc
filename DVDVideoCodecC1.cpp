@@ -101,7 +101,17 @@ bool CDVDVideoCodecC1::Open(CDVDStreamInfo &hints, CDVDCodecOptions &options)
   m_videobuffer.iDisplayWidth   = m_videobuffer.iWidth;
   m_videobuffer.iDisplayHeight  = m_videobuffer.iHeight;
 
-  CLog::Log(LOGNOTICE, "%s::%s Opened C1 Amlogic Codec", CLASSNAME, __func__);
+  if (m_hints.aspect > 0.0 && !m_hints.forced_aspect)
+  {
+    m_videobuffer.iDisplayWidth  = ((int)lrint(m_videobuffer.iHeight * m_hints.aspect)) & -3;
+    if (m_videobuffer.iDisplayWidth > m_videobuffer.iWidth)
+    {
+      m_videobuffer.iDisplayWidth  = m_videobuffer.iWidth;
+      m_videobuffer.iDisplayHeight = ((int)lrint(m_videobuffer.iWidth / m_hints.aspect)) & -3;
+    }
+  }
+
+  CLog::Log(LOGNOTICE, "%s::%s Opened C1 Amlogic Codec. hints.aspect: %f, DisplayWidth: %d, DisplayHeight: %d", CLASSNAME, __func__, m_hints.aspect, m_videobuffer.iDisplayWidth, m_videobuffer.iDisplayHeight);
   return true;
 }
 
