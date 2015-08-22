@@ -31,15 +31,17 @@
 
 CDVDVideoCodecC1::CDVDVideoCodecC1() :
   m_Codec(NULL),
-  m_pFormatName("c1-none"),
-  m_bitstream(NULL)
+  m_pFormatName("c1-none")
 {
+  m_bitstream = new CBitstreamConverter;
   memzero(m_videobuffer);
 }
 
 CDVDVideoCodecC1::~CDVDVideoCodecC1()
 {
   Dispose();
+  if (m_bitstream)
+    delete m_bitstream, m_bitstream = NULL;
 }
 
 bool CDVDVideoCodecC1::Open(CDVDStreamInfo &hints, CDVDCodecOptions &options)
@@ -58,27 +60,9 @@ bool CDVDVideoCodecC1::Open(CDVDStreamInfo &hints, CDVDCodecOptions &options)
   {
     case AV_CODEC_ID_H264:
       m_pFormatName = "c1-h264";
-      if (m_hints.extradata && *(uint8_t*)m_hints.extradata == 1)
-      {
-        m_bitstream = new CBitstreamConverter;
-        m_bitstream->Open(m_hints.codec, (uint8_t*)m_hints.extradata, m_hints.extrasize, true);
-        free(m_hints.extradata);
-        m_hints.extrasize = m_bitstream->GetExtraSize();
-        m_hints.extradata = malloc(m_hints.extrasize);
-        memcpy(m_hints.extradata, m_bitstream->GetExtraData(), m_hints.extrasize);
-      }
       break;
     case AV_CODEC_ID_HEVC:
-      if ((m_hints.width > 1920) || (m_hints.height > 1088))
-        // 4K HEVC is supported only on Amlogic S812 chip
-        return false;
       m_pFormatName = "c1-hevc";
-      m_bitstream = new CBitstreamConverter();
-      m_bitstream->Open(m_hints.codec, (uint8_t*)m_hints.extradata, m_hints.extrasize, true);
-      free(m_hints.extradata);
-      m_hints.extrasize = m_bitstream->GetExtraSize();
-      m_hints.extradata = malloc(m_hints.extrasize);
-      memcpy(m_hints.extradata, m_bitstream->GetExtraData(), m_hints.extrasize);
       break;
     default:
       CLog::Log(LOGDEBUG, "%s: Unknown hints.codec(%d", CLASSNAME, m_hints.codec);
@@ -86,7 +70,14 @@ bool CDVDVideoCodecC1::Open(CDVDStreamInfo &hints, CDVDCodecOptions &options)
       break;
   }
 
-  m_aspect_ratio = m_hints.aspect;
+  m_bVideoConvert = m_bitstream->Open(m_hints.codec, (uint8_t*)m_hints.extradata, m_hints.extrasize, true);
+  if (m_bVideoConvert) {
+    m_hints.extrasize = m_bitstream->GetExtraSize();
+    free(m_hints.extradata);
+    m_hints.extradata = malloc(m_hints.extrasize);
+    memcpy(m_hints.extradata, m_bitstream->GetExtraData(), m_hints.extrasize);
+  }
+
   m_Codec = new CLinuxC1Codec();
   if (!m_Codec)
   {
@@ -110,17 +101,7 @@ bool CDVDVideoCodecC1::Open(CDVDStreamInfo &hints, CDVDCodecOptions &options)
   m_videobuffer.iDisplayWidth   = m_videobuffer.iWidth;
   m_videobuffer.iDisplayHeight  = m_videobuffer.iHeight;
 
-  if (m_hints.aspect > 0.0 && !m_hints.forced_aspect)
-  {
-    m_videobuffer.iDisplayWidth  = ((int)lrint(m_videobuffer.iHeight * m_hints.aspect)) & -3;
-    if (m_videobuffer.iDisplayWidth > m_videobuffer.iWidth)
-    {
-      m_videobuffer.iDisplayWidth  = m_videobuffer.iWidth;
-      m_videobuffer.iDisplayHeight = ((int)lrint(m_videobuffer.iWidth / m_hints.aspect)) & -3;
-    }
-  }
-
-  CLog::Log(LOGINFO, "%s: Opened C1 Amlogic Codec", CLASSNAME);
+  CLog::Log(LOGNOTICE, "%s::%s Opened C1 Amlogic Codec", CLASSNAME, __func__);
   return true;
 }
 
@@ -130,28 +111,22 @@ void CDVDVideoCodecC1::Dispose(void)
     m_Codec->CloseDecoder(), delete m_Codec, m_Codec = NULL;
   if (m_videobuffer.iFlags)
     m_videobuffer.iFlags = 0;
-  if (m_bitstream)
-    delete m_bitstream, m_bitstream = NULL;
 }
 
 int CDVDVideoCodecC1::Decode(uint8_t *pData, int iSize, double dts, double pts)
 {
-  // Handle Input, add demuxer packet to input queue, we must accept it or
-  // it will be discarded as DVDPlayerVideo has no concept of "try again".
+
+  if (m_hints.ptsinvalid)
+    pts = DVD_NOPTS_VALUE;
+
   if (pData)
   {
-    if (m_bitstream)
-    {
-      if (!m_bitstream->Convert(pData, iSize))
-        return VC_ERROR;
-
+    if (m_bVideoConvert) {
+      m_bitstream->Convert(pData, iSize);
       pData = m_bitstream->GetConvertBuffer();
       iSize = m_bitstream->GetConvertSize();
     }
   }
-
-  if (m_hints.ptsinvalid)
-    pts = DVD_NOPTS_VALUE;
 
   return m_Codec->Decode(pData, iSize, dts, pts);
 }
@@ -163,21 +138,8 @@ void CDVDVideoCodecC1::Reset(void)
 
 bool CDVDVideoCodecC1::GetPicture(DVDVideoPicture* pDvdVideoPicture)
 {
-  if (m_Codec)
-    m_Codec->GetPicture(&m_videobuffer);
+  m_Codec->GetPicture(&m_videobuffer);
   *pDvdVideoPicture = m_videobuffer;
-
-  pDvdVideoPicture->iDisplayWidth  = pDvdVideoPicture->iWidth;
-  pDvdVideoPicture->iDisplayHeight = pDvdVideoPicture->iHeight;
-  if (m_aspect_ratio > 1.0 && !m_hints.forced_aspect)
-  {
-    pDvdVideoPicture->iDisplayWidth  = ((int)lrint(pDvdVideoPicture->iHeight * m_aspect_ratio)) & -3;
-    if (pDvdVideoPicture->iDisplayWidth > pDvdVideoPicture->iWidth)
-    {
-      pDvdVideoPicture->iDisplayWidth  = pDvdVideoPicture->iWidth;
-      pDvdVideoPicture->iDisplayHeight = ((int)lrint(pDvdVideoPicture->iWidth / m_aspect_ratio)) & -3;
-    }
-  }
 
   return true;
 }
@@ -191,3 +153,4 @@ void CDVDVideoCodecC1::SetSpeed(int iSpeed)
   if (m_Codec)
     m_Codec->SetSpeed(iSpeed);
 }
+

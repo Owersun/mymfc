@@ -38,7 +38,7 @@ protected:
   const char     *m_pFormatName;
   DVDVideoPicture m_videobuffer;
   CDVDStreamInfo  m_hints;
-  float           m_aspect_ratio;
 
   CBitstreamConverter *m_bitstream;
+  bool                 m_bVideoConvert;
 };

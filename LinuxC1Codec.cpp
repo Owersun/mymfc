@@ -572,8 +572,6 @@ bool CLinuxC1Codec::GetPicture(DVDVideoPicture *pDvdVideoPicture)
 {
   debug_log(LOGDEBUG, "%s::%s", CLASSNAME, __func__);
 
-  pDvdVideoPicture->iFlags = DVP_FLAG_ALLOCATED;
-  pDvdVideoPicture->format = RENDER_FMT_BYPASS;
   pDvdVideoPicture->iDuration = (double)(am_private->video_rate * DVD_TIME_BASE) / UNIT_FREQ;
 
   pDvdVideoPicture->dts = DVD_NOPTS_VALUE;
@@ -731,3 +729,4 @@ void CLinuxC1Codec::Reset() {
   m_old_pictcnt = 0;
   SetSpeed(m_speed);
 }
+
