@@ -58,6 +58,11 @@ bool CDVDVideoCodecC1::Open(CDVDStreamInfo &hints, CDVDCodecOptions &options)
 
   switch(m_hints.codec)
   {
+    case AV_CODEC_ID_MPEG4:
+    case AV_CODEC_ID_MSMPEG4V2:
+    case AV_CODEC_ID_MSMPEG4V3:
+      m_pFormatName = "c1-mpeg4";
+      break;
     case AV_CODEC_ID_H264:
       m_pFormatName = "c1-h264";
       break;
@@ -163,4 +168,3 @@ void CDVDVideoCodecC1::SetSpeed(int iSpeed)
   if (m_Codec)
     m_Codec->SetSpeed(iSpeed);
 }
-

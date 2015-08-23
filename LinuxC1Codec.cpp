@@ -39,13 +39,20 @@ static vformat_t codecid_to_vformat(enum AVCodecID id)
   vformat_t format;
   switch (id)
   {
+    case AV_CODEC_ID_H263:
+    case AV_CODEC_ID_MPEG4:
+    case AV_CODEC_ID_H263P:
+    case AV_CODEC_ID_H263I:
+    case AV_CODEC_ID_MSMPEG4V2:
+    case AV_CODEC_ID_MSMPEG4V3:
+      format = VFORMAT_MPEG4;
+      break;
     case AV_CODEC_ID_H264:
       format = VFORMAT_H264;
       break;
     case AV_CODEC_ID_HEVC:
       format = VFORMAT_HEVC;
       break;
-
     default:
       format = VFORMAT_UNSUPPORT;
       break;
@@ -60,6 +67,40 @@ static vdec_type_t codec_tag_to_vdec_type(unsigned int codec_tag)
   vdec_type_t dec_type;
   switch (codec_tag)
   {
+    case CODEC_TAG_COL1:
+    case CODEC_TAG_DIV3:
+    case CODEC_TAG_MP43:
+      // divx3.11
+      dec_type = VIDEO_DEC_FORMAT_MPEG4_3;
+      break;
+    case CODEC_TAG_DIV4:
+    case CODEC_TAG_DIVX:
+      // divx4
+      dec_type = VIDEO_DEC_FORMAT_MPEG4_4;
+      break;
+    case CODEC_TAG_XVID:
+    case CODEC_TAG_xvid:
+    case CODEC_TAG_XVIX:
+    case CODEC_TAG_DIV5:
+    case CODEC_TAG_DX50:
+    case CODEC_TAG_M4S2:
+    case CODEC_TAG_FMP4:
+    case CODEC_TAG_DIV6:
+    case CODEC_TAG_MP4V:
+    case CODEC_TAG_RMP4:
+    case CODEC_TAG_MPG4:
+    case CODEC_TAG_mp4v:
+    case AV_CODEC_ID_MPEG4:
+      dec_type = VIDEO_DEC_FORMAT_MPEG4_5;
+      break;
+    case AV_CODEC_ID_H263:
+    case CODEC_TAG_H263:
+    case CODEC_TAG_h263:
+    case CODEC_TAG_s263:
+    case CODEC_TAG_F263:
+      // h263
+      dec_type = VIDEO_DEC_FORMAT_H263;
+      break;
     case CODEC_TAG_AVC1:
     case CODEC_TAG_avc1:
     case CODEC_TAG_H264:
@@ -321,6 +362,79 @@ static int hevc_write_header(am_private_t *para, am_packet_t *pkt)
     return ret;
 }
 
+static int divx3_data_prefeeding(am_packet_t *pkt, unsigned w, unsigned h)
+{
+    unsigned i = (w << 12) | (h & 0xfff);
+    unsigned char divx311_add[10] = {
+        0x00, 0x00, 0x00, 0x01,
+        0x20, 0x00, 0x00, 0x00,
+        0x00, 0x00
+    };
+    divx311_add[5] = (i >> 16) & 0xff;
+    divx311_add[6] = (i >> 8) & 0xff;
+    divx311_add[7] = i & 0xff;
+
+    if (pkt->hdr->data) {
+        memcpy(pkt->hdr->data, divx311_add, sizeof(divx311_add));
+        pkt->hdr->size = sizeof(divx311_add);
+    } else {
+        CLog::Log(LOGDEBUG, "[divx3_data_prefeeding]No enough memory!");
+        return PLAYER_FAILED;
+    }
+    return PLAYER_SUCCESS;
+}
+
+static int divx3_write_header(am_private_t *para, am_packet_t *pkt)
+{
+    CLog::Log(LOGDEBUG, "divx3_write_header");
+    divx3_data_prefeeding(pkt, para->video_width, para->video_height);
+    if (1) {
+        pkt->codec = &para->vcodec;
+    } else {
+        CLog::Log(LOGDEBUG, "[divx3_write_header]invalid codec!");
+        return PLAYER_EMPTY_P;
+    }
+    pkt->newflag = 1;
+    write_av_packet(para, pkt);
+    return PLAYER_SUCCESS;
+}
+
+static int m4s2_dx50_mp4v_add_header(unsigned char *buf, int size,  am_packet_t *pkt)
+{
+    if (size > pkt->hdr->size) {
+        free(pkt->hdr->data), pkt->hdr->data = NULL;
+        pkt->hdr->size = 0;
+
+        pkt->hdr->data = (char*)malloc(size);
+        if (!pkt->hdr->data) {
+            CLog::Log(LOGDEBUG, "[m4s2_dx50_add_header] NOMEM!");
+            return PLAYER_FAILED;
+        }
+    }
+
+    pkt->hdr->size = size;
+    memcpy(pkt->hdr->data, buf, size);
+
+    return PLAYER_SUCCESS;
+}
+
+static int m4s2_dx50_mp4v_write_header(am_private_t *para, am_packet_t *pkt)
+{
+    CLog::Log(LOGDEBUG, "m4s2_dx50_mp4v_write_header");
+    int ret = m4s2_dx50_mp4v_add_header(para->extradata, para->extrasize, pkt);
+    if (ret == PLAYER_SUCCESS) {
+        if (1) {
+            pkt->codec = &para->vcodec;
+        } else {
+            CLog::Log(LOGDEBUG, "[m4s2_dx50_mp4v_add_header]invalid video codec!");
+            return PLAYER_EMPTY_P;
+        }
+        pkt->newflag = 1;
+        ret = write_av_packet(para, pkt);
+    }
+    return ret;
+}
+
 int pre_header_feeding(am_private_t *para, am_packet_t *pkt)
 {
     int ret;
@@ -341,6 +455,18 @@ int pre_header_feeding(am_private_t *para, am_packet_t *pkt)
             }
         } else if (VFORMAT_HEVC == para->video_format) {
             ret = hevc_write_header(para, pkt);
+            if (ret != PLAYER_SUCCESS) {
+                return ret;
+            }
+        } else if ((VFORMAT_MPEG4 == para->video_format) && (VIDEO_DEC_FORMAT_MPEG4_3 == para->video_codec_type)) {
+            ret = divx3_write_header(para, pkt);
+            if (ret != PLAYER_SUCCESS) {
+                return ret;
+            }
+        } else if ((CODEC_TAG_M4S2 == para->video_codec_tag)
+                || (CODEC_TAG_DX50 == para->video_codec_tag)
+                || (CODEC_TAG_mp4v == para->video_codec_tag)) {
+            ret = m4s2_dx50_mp4v_write_header(para, pkt);
             if (ret != PLAYER_SUCCESS) {
                 return ret;
             }
@@ -482,6 +608,9 @@ bool CLinuxC1Codec::OpenDecoder(CDVDStreamInfo &hints) {
 
   switch(am_private->video_format)
   {
+    case VFORMAT_MPEG4:
+      am_private->gcodec.param = (void*)EXTERNAL_PTS;
+      break;
     case VFORMAT_H264:
     case VFORMAT_H264MVC:
       am_private->gcodec.format = VIDEO_DEC_FORMAT_H264;
