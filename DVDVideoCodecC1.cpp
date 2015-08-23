@@ -58,6 +58,10 @@ bool CDVDVideoCodecC1::Open(CDVDStreamInfo &hints, CDVDCodecOptions &options)
 
   switch(m_hints.codec)
   {
+    case AV_CODEC_ID_MPEG1VIDEO:
+    case AV_CODEC_ID_MPEG2VIDEO:
+      m_pFormatName = "c1-mpeg2";
+      break;
     case AV_CODEC_ID_MPEG4:
     case AV_CODEC_ID_MSMPEG4V2:
     case AV_CODEC_ID_MSMPEG4V3:

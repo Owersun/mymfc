@@ -26,11 +26,11 @@ static int64_t get_pts_video()
     if (size > 0)
     {
       unsigned long pts = strtoul(pts_str, NULL, 16);
-      debug_log(LOGDEBUG, "get_pts_video: %lu", pts);
+      debug_log(LOGDEBUG, "%s::%s get_pts_video: %lu", CLASSNAME, __func__, pts);
       return pts;
     }
   }
-  CLog::Log(LOGERROR, "get_pts_video: open /tsync/event error");
+  CLog::Log(LOGERROR, "%s::%s get_pts_video: open /tsync/event error", CLASSNAME, __func__);
   return -1;
 }
 
@@ -39,9 +39,11 @@ static vformat_t codecid_to_vformat(enum AVCodecID id)
   vformat_t format;
   switch (id)
   {
+    case AV_CODEC_ID_MPEG1VIDEO:
+    case AV_CODEC_ID_MPEG2VIDEO:
+      format = VFORMAT_MPEG12;
+      break;
     case AV_CODEC_ID_MPEG4:
-    case AV_CODEC_ID_MSMPEG4V2:
-    case AV_CODEC_ID_MSMPEG4V3:
       format = VFORMAT_MPEG4;
       break;
     case AV_CODEC_ID_H264:
@@ -55,7 +57,7 @@ static vformat_t codecid_to_vformat(enum AVCodecID id)
       break;
   }
 
-  CLog::Log(LOGDEBUG, "codecid_to_vformat, id(%d) -> vformat(%d)", (int)id, format);
+  CLog::Log(LOGDEBUG, "%s::%s codecid_to_vformat, id(%d) -> vformat(%d)", CLASSNAME, __func__, (int)id, format);
   return format;
 }
 
@@ -106,7 +108,7 @@ static vdec_type_t codec_tag_to_vdec_type(unsigned int codec_tag)
       break;
   }
 
-  CLog::Log(LOGDEBUG, "codec_tag_to_vdec_type, codec_tag(%d) -> vdec_type(%d)", codec_tag, dec_type);
+  CLog::Log(LOGDEBUG, "%s::%s codec_tag_to_vdec_type, codec_tag(%d) -> vdec_type(%d)", CLASSNAME, __func__, codec_tag, dec_type);
   return dec_type;
 }
 
@@ -157,7 +159,7 @@ int check_in_pts(am_private_t *para, am_packet_t *pkt)
             pts = pkt->avpts;
 
             if (codec_checkin_pts(pkt->codec, pts) != 0) {
-                CLog::Log(LOGERROR, "ERROR check in pts error!");
+                CLog::Log(LOGERROR, "%s::%s ERROR check in pts error!", CLASSNAME, __func__);
                 return PLAYER_PTS_ERROR;
             }
 
@@ -165,7 +167,7 @@ int check_in_pts(am_private_t *para, am_packet_t *pkt)
             pts = pkt->avdts * last_duration;
 
             if (codec_checkin_pts(pkt->codec, pts) != 0) {
-                CLog::Log(LOGERROR, "ERROR check in dts error!");
+                CLog::Log(LOGERROR, "%s::%s ERROR check in dts error!", CLASSNAME, __func__);
                 return PLAYER_PTS_ERROR;
             }
 
@@ -173,7 +175,7 @@ int check_in_pts(am_private_t *para, am_packet_t *pkt)
         } else {
             if (!para->check_first_pts) {
                 if (codec_checkin_pts(pkt->codec, 0) != 0) {
-                    CLog::Log(LOGERROR, "ERROR check in 0 to video pts error!");
+                    CLog::Log(LOGERROR, "%s::%s ERROR check in 0 to video pts error!", CLASSNAME, __func__);
                     return PLAYER_PTS_ERROR;
                 }
             }
@@ -194,14 +196,14 @@ static int write_header(am_private_t *para, am_packet_t *pkt)
 
     if (pkt->hdr && pkt->hdr->size > 0) {
         if ((NULL == pkt->codec) || (NULL == pkt->hdr->data)) {
-            CLog::Log(LOGDEBUG, "[write_header]codec null!");
+            CLog::Log(LOGERROR, "%s::%s [write_header]codec null!", CLASSNAME, __func__);
             return PLAYER_EMPTY_P;
         }
         while (1) {
             write_bytes = codec_write(pkt->codec, pkt->hdr->data + len, pkt->hdr->size - len);
             if (write_bytes < 0 || write_bytes > (pkt->hdr->size - len)) {
                 if (-errno != AVERROR(EAGAIN)) {
-                    CLog::Log(LOGDEBUG, "ERROR:write header failed!");
+                    CLog::Log(LOGERROR, "%s::%s ERROR:write header failed!", CLASSNAME, __func__);
                     return PLAYER_WR_FAILED;
                 } else {
                     continue;
@@ -231,12 +233,12 @@ int write_av_packet(am_private_t *para, am_packet_t *pkt)
         if (pkt->isvalid) {
             ret = check_in_pts(para, pkt);
             if (ret != PLAYER_SUCCESS) {
-                CLog::Log(LOGDEBUG, "check in pts failed");
+                CLog::Log(LOGERROR, "%s::%s check in pts failed", CLASSNAME, __func__);
                 return PLAYER_WR_FAILED;
             }
         }
         if (write_header(para, pkt) == PLAYER_WR_FAILED) {
-            CLog::Log(LOGDEBUG, "[%s]write header failed!", __FUNCTION__);
+            CLog::Log(LOGERROR, "%s::%s write header failed!", CLASSNAME, __func__);
             return PLAYER_WR_FAILED;
         }
         pkt->newflag = 0;
@@ -252,7 +254,7 @@ int write_av_packet(am_private_t *para, am_packet_t *pkt)
     while (size > 0 && pkt->isvalid) {
         write_bytes = codec_write(pkt->codec, buf, size);
         if (write_bytes < 0 || write_bytes > size) {
-            CLog::Log(LOGDEBUG, "write codec data failed, write_bytes(%d), errno(%d), size(%d)", write_bytes, errno, size);
+            CLog::Log(LOGDEBUG, "%s::%s write codec data failed, write_bytes(%d), errno(%d), size(%d)", CLASSNAME, __func__, write_bytes, errno, size);
             if (-errno != AVERROR(EAGAIN)) {
                 CLog::Log(LOGDEBUG, "write codec data failed!");
                 return PLAYER_WR_FAILED;
@@ -263,7 +265,7 @@ int write_av_packet(am_private_t *para, am_packet_t *pkt)
                 pkt->data += len;
                 pkt->data_size -= len;
                 usleep(RW_WAIT_TIME);
-                CLog::Log(LOGDEBUG, "usleep(RW_WAIT_TIME), len(%d)", len);
+                CLog::Log(LOGDEBUG, "%s::%s usleep(RW_WAIT_TIME), len(%d)", CLASSNAME, __func__, len);
                 return PLAYER_SUCCESS;
             }
         } else {
@@ -304,17 +306,11 @@ static int h264_add_header(unsigned char *buf, int size, am_packet_t *pkt)
 
 static int h264_write_header(am_private_t *para, am_packet_t *pkt)
 {
-    // CLog::Log(LOGDEBUG, "h264_write_header");
+    CLog::Log(LOGDEBUG, "%s::%s h264_write_header", CLASSNAME, __func__);
+
     int ret = h264_add_header(para->extradata, para->extrasize, pkt);
     if (ret == PLAYER_SUCCESS) {
-        //if (ctx->vcodec) {
-        if (1) {
-            pkt->codec = &para->vcodec;
-        } else {
-            //CLog::Log(LOGDEBUG, "[pre_header_feeding]invalid video codec!");
-            return PLAYER_EMPTY_P;
-        }
-
+        pkt->codec = &para->vcodec;
         pkt->newflag = 1;
         ret = write_av_packet(para, pkt);
     }
@@ -367,7 +363,7 @@ static int divx3_data_prefeeding(am_packet_t *pkt, unsigned w, unsigned h)
         memcpy(pkt->hdr->data, divx311_add, sizeof(divx311_add));
         pkt->hdr->size = sizeof(divx311_add);
     } else {
-        CLog::Log(LOGDEBUG, "[divx3_data_prefeeding]No enough memory!");
+        CLog::Log(LOGERROR, "%s::%s [divx3_data_prefeeding]No enough memory!", CLASSNAME, __func__);
         return PLAYER_FAILED;
     }
     return PLAYER_SUCCESS;
@@ -375,14 +371,11 @@ static int divx3_data_prefeeding(am_packet_t *pkt, unsigned w, unsigned h)
 
 static int divx3_write_header(am_private_t *para, am_packet_t *pkt)
 {
-    CLog::Log(LOGDEBUG, "divx3_write_header");
+    CLog::Log(LOGDEBUG, "%s::%s divx3_write_header", CLASSNAME, __func__);
+
     divx3_data_prefeeding(pkt, para->video_width, para->video_height);
-    if (1) {
-        pkt->codec = &para->vcodec;
-    } else {
-        CLog::Log(LOGDEBUG, "[divx3_write_header]invalid codec!");
-        return PLAYER_EMPTY_P;
-    }
+
+    pkt->codec = &para->vcodec;
     pkt->newflag = 1;
     write_av_packet(para, pkt);
     return PLAYER_SUCCESS;
@@ -396,7 +389,7 @@ static int m4s2_dx50_mp4v_add_header(unsigned char *buf, int size,  am_packet_t 
 
         pkt->hdr->data = (char*)malloc(size);
         if (!pkt->hdr->data) {
-            CLog::Log(LOGDEBUG, "[m4s2_dx50_add_header] NOMEM!");
+            CLog::Log(LOGERROR, "%s::%s [m4s2_dx50_add_header] NOMEM!", CLASSNAME, __func__);
             return PLAYER_FAILED;
         }
     }
@@ -409,34 +402,67 @@ static int m4s2_dx50_mp4v_add_header(unsigned char *buf, int size,  am_packet_t 
 
 static int m4s2_dx50_mp4v_write_header(am_private_t *para, am_packet_t *pkt)
 {
-    CLog::Log(LOGDEBUG, "m4s2_dx50_mp4v_write_header");
+    CLog::Log(LOGDEBUG, "%s::%s m4s2_dx50_mp4v_write_header", CLASSNAME, __func__);
+
     int ret = m4s2_dx50_mp4v_add_header(para->extradata, para->extrasize, pkt);
     if (ret == PLAYER_SUCCESS) {
-        if (1) {
-            pkt->codec = &para->vcodec;
-        } else {
-            CLog::Log(LOGDEBUG, "[m4s2_dx50_mp4v_add_header]invalid video codec!");
-            return PLAYER_EMPTY_P;
-        }
+        pkt->codec = &para->vcodec;
         pkt->newflag = 1;
         ret = write_av_packet(para, pkt);
     }
     return ret;
 }
 
+static int mpeg_add_header(am_private_t *para, am_packet_t *pkt)
+{
+    CLog::Log(LOGDEBUG, "%s::%s mpeg_add_header", CLASSNAME, __func__);
+
+#define STUFF_BYTES_LENGTH     (256)
+
+    int size;
+    unsigned char packet_wrapper[] = {
+        0x00, 0x00, 0x01, 0xe0,
+        0x00, 0x00,                                /* pes packet length */
+        0x81, 0xc0, 0x0d,
+        0x20, 0x00, 0x00, 0x00, 0x00, /* PTS */
+        0x1f, 0xff, 0xff, 0xff, 0xff, /* DTS */
+        0xff, 0xff, 0xff, 0xff, 0xff, 0xff
+    };
+
+    size = para->extrasize + sizeof(packet_wrapper);
+    packet_wrapper[4] = size >> 8 ;
+    packet_wrapper[5] = size & 0xff ;
+    memcpy(pkt->hdr->data, packet_wrapper, sizeof(packet_wrapper));
+    size = sizeof(packet_wrapper);
+    //CLog::Log(LOGDEBUG, "[mpeg_add_header:%d]wrapper size=%d\n",__LINE__,size);
+    memcpy(pkt->hdr->data + size, para->extradata, para->extrasize);
+    size += para->extrasize;
+    //CLog::Log(LOGDEBUG, "[mpeg_add_header:%d]wrapper+seq size=%d\n",__LINE__,size);
+    memset(pkt->hdr->data + size, 0xff, STUFF_BYTES_LENGTH);
+    size += STUFF_BYTES_LENGTH;
+    pkt->hdr->size = size;
+    //CLog::Log(LOGDEBUG, "[mpeg_add_header:%d]hdr_size=%d\n",__LINE__,size);
+
+    pkt->codec = &para->vcodec;
+    pkt->newflag = 1;
+    return write_av_packet(para, pkt);
+
+}
+
 int pre_header_feeding(am_private_t *para, am_packet_t *pkt)
 {
     int ret;
-    if (para->stream_type == AM_STREAM_ES) {
-        if (pkt->hdr == NULL) {
-            pkt->hdr = (hdr_buf_t*)malloc(sizeof(hdr_buf_t));
-            pkt->hdr->data = (char *)malloc(HDR_BUF_SIZE);
-            if (!pkt->hdr->data) {
-                //CLog::Log(LOGDEBUG, "[pre_header_feeding] NOMEM!");
-                return PLAYER_NOMEM;
-            }
-        }
 
+    if (pkt->hdr == NULL) {
+        pkt->hdr = (hdr_buf_t*)malloc(sizeof(hdr_buf_t));
+        pkt->hdr->data = (char*)malloc(HDR_BUF_SIZE);
+        if (!pkt->hdr->data) {
+            CLog::Log(LOGERROR, "%s::%s [pre_header_feeding] NOMEM!", CLASSNAME, __func__);
+            return PLAYER_NOMEM;
+        }
+    }
+
+    if (para->stream_type == AM_STREAM_ES) {
         if (VFORMAT_H264 == para->video_format || VFORMAT_H264_4K2K == para->video_format) {
             ret = h264_write_header(para, pkt);
             if (ret != PLAYER_SUCCESS) {
@@ -460,16 +486,26 @@ int pre_header_feeding(am_private_t *para, am_packet_t *pkt)
                 return ret;
             }
         }
-
-        if (pkt->hdr) {
-            if (pkt->hdr->data) {
-                free(pkt->hdr->data);
-                pkt->hdr->data = NULL;
+    }
+    else if (para->stream_type == AM_STREAM_PS) {
+        if (( AV_CODEC_ID_MPEG1VIDEO == para->video_codec_id)
+          || (AV_CODEC_ID_MPEG2VIDEO == para->video_codec_id)) {
+            ret = mpeg_add_header(para, pkt);
+            if (ret != PLAYER_SUCCESS) {
+                return ret;
             }
-            free(pkt->hdr);
-            pkt->hdr = NULL;
         }
     }
+
+    if (pkt->hdr) {
+        if (pkt->hdr->data) {
+            free(pkt->hdr->data);
+            pkt->hdr->data = NULL;
+        }
+        free(pkt->hdr);
+        pkt->hdr = NULL;
+    }
+
     return PLAYER_SUCCESS;
 }
 
