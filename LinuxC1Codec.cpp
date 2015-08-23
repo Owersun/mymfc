@@ -39,10 +39,7 @@ static vformat_t codecid_to_vformat(enum AVCodecID id)
   vformat_t format;
   switch (id)
   {
-    case AV_CODEC_ID_H263:
     case AV_CODEC_ID_MPEG4:
-    case AV_CODEC_ID_H263P:
-    case AV_CODEC_ID_H263I:
     case AV_CODEC_ID_MSMPEG4V2:
     case AV_CODEC_ID_MSMPEG4V3:
       format = VFORMAT_MPEG4;
@@ -92,14 +89,6 @@ static vdec_type_t codec_tag_to_vdec_type(unsigned int codec_tag)
     case CODEC_TAG_mp4v:
     case AV_CODEC_ID_MPEG4:
       dec_type = VIDEO_DEC_FORMAT_MPEG4_5;
-      break;
-    case AV_CODEC_ID_H263:
-    case CODEC_TAG_H263:
-    case CODEC_TAG_h263:
-    case CODEC_TAG_s263:
-    case CODEC_TAG_F263:
-      // h263
-      dec_type = VIDEO_DEC_FORMAT_H263;
       break;
     case CODEC_TAG_AVC1:
     case CODEC_TAG_avc1:

@@ -70,7 +70,7 @@ bool CDVDVideoCodecC1::Open(CDVDStreamInfo &hints, CDVDCodecOptions &options)
       m_pFormatName = "c1-hevc";
       break;
     default:
-      CLog::Log(LOGDEBUG, "%s: Unknown hints.codec(%d", CLASSNAME, m_hints.codec);
+      CLog::Log(LOGDEBUG, "%s: Unknown hints.codec id: %d", CLASSNAME, m_hints.codec);
       return false;
       break;
   }
