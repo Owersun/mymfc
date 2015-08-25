@@ -94,8 +94,10 @@ bool CDVDVideoCodecC1::Open(CDVDStreamInfo &hints, CDVDCodecOptions &options)
     return false;
   }
 
-  if (!m_Codec->OpenDecoder(m_hints))
+  if (!m_Codec->OpenDecoder(m_hints)) {
     CLog::Log(LOGERROR, "%s: Failed to open C1 Amlogic Codec", CLASSNAME);
+    return false;
+  }
 
   memzero(m_videobuffer);
 
