@@ -120,7 +120,7 @@ int main(int argc, char** argv) {
     CLog::Log(LOGDEBUG, "%s::%s - Extracted frame number %d of size %d", CLASSNAME, __func__, frameNumber, packet.size);
 
     ret = m_cVideoCodec->Decode(packet.data, packet.size, packet.pts, packet.dts);
-    if (ret | VC_PICTURE)
+    if (ret & VC_PICTURE)
       m_cVideoCodec->GetPicture(m_pDvdVideoPicture);
 
     av_free_packet(&packet);
