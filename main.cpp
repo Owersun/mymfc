@@ -89,7 +89,7 @@ int main(int argc, char** argv) {
   m_cHints->codec_tag = codecCtx->codec_tag;
   m_cHints->width     = codecCtx->width;
   m_cHints->height    = codecCtx->height;
-  
+
   CLog::Log(LOGDEBUG, "%s::%s - Header of size %d", CLASSNAME, __func__, codecCtx->extradata_size);
 
   CDVDCodecOptions options;

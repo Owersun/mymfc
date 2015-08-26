@@ -887,6 +887,10 @@ void CLinuxC1Codec::Reset() {
 }
 
 void CLinuxC1Codec::SetViewport(int width, int height) {
+
+  if (m_hints.aspect > 0.0 && !m_hints.forced_aspect && (((int)lrint(height * m_hints.aspect)) & -3) > width)
+    width = ((int)lrint(height * m_hints.aspect)) & -3;
+
   char setting[256] = {};
   double scale;
   int displayWidth = CDisplaySettings::Get().GetCurrentResolutionInfo().iWidth;
