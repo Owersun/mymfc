@@ -190,7 +190,7 @@ struct RESOLUTION_INFO {
 
 class CDisplaySettings {
 public:
-  static CDisplaySettings& Get()
+  static CDisplaySettings& GetInstance()
   {
     static CDisplaySettings sDisplaySettings;
     return sDisplaySettings;

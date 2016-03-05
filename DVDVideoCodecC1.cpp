@@ -115,8 +115,8 @@ bool CDVDVideoCodecC1::Open(CDVDStreamInfo &hints, CDVDCodecOptions &options)
   if (m_hints.aspect > 0.0 && (((uint)lrint(m_videobuffer.iHeight * m_hints.aspect)) & -3) > m_videobuffer.iWidth)
       m_videobuffer.iDisplayWidth = ((int)lrint(m_videobuffer.iHeight * m_hints.aspect)) & -3;
   double scale = fmin(
-    (double)CDisplaySettings::Get().GetCurrentResolutionInfo().iWidth / (double)m_videobuffer.iDisplayWidth,
-    (double)CDisplaySettings::Get().GetCurrentResolutionInfo().iHeight / (double)m_videobuffer.iDisplayHeight
+    (double)CDisplaySettings::GetInstance().GetCurrentResolutionInfo().iWidth / (double)m_videobuffer.iDisplayWidth,
+    (double)CDisplaySettings::GetInstance().GetCurrentResolutionInfo().iHeight / (double)m_videobuffer.iDisplayHeight
   );
   m_videobuffer.iDisplayWidth = (int)((double)m_videobuffer.iDisplayWidth * scale);
   m_videobuffer.iDisplayHeight  = (int)((double)m_videobuffer.iDisplayHeight * scale);

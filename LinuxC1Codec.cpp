@@ -659,7 +659,7 @@ bool CLinuxC1Codec::OpenDecoder(CDVDStreamInfo &hints) {
     default:
       break;
   }
-  am_private->gcodec.param = (void *)((unsigned int)am_private->gcodec.param | (am_private->video_rotation_degree << 16));
+  am_private->gcodec.param = (void *)((uintptr_t)am_private->gcodec.param | (am_private->video_rotation_degree << 16));
 
   // translate from generic to firmware version dependent
   codec_init_para(&am_private->gcodec, &am_private->vcodec);
@@ -892,8 +892,8 @@ void CLinuxC1Codec::SetViewport(int width, int height) {
 
   char setting[256] = {};
   double scale;
-  int displayWidth = CDisplaySettings::Get().GetCurrentResolutionInfo().iWidth;
-  int displayHeight = CDisplaySettings::Get().GetCurrentResolutionInfo().iHeight;
+  int displayWidth = CDisplaySettings::GetInstance().GetCurrentResolutionInfo().iWidth;
+  int displayHeight = CDisplaySettings::GetInstance().GetCurrentResolutionInfo().iHeight;
   int cutWidth;
   int cutHeight;
 
