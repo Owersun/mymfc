@@ -7,4 +7,5 @@ DVDVideoPicture* m_pDvdVideoPicture;
 CDVDStreamInfo* m_cHints;
 AVFormatContext* formatCtx;
 AVCodecContext* codecCtx;
+AVCodecParameters* codecParameters;
 AVCodec* codec;

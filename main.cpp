@@ -15,7 +15,8 @@ void Cleanup() {
     delete m_pDvdVideoPicture;
 
   avcodec_close(codecCtx);
-	avformat_close_input(&formatCtx);
+  av_free(codecCtx);
+  avformat_close_input(&formatCtx);
 }
 
 void intHandler(int dummy=0) {
@@ -29,6 +30,7 @@ int main(int argc, char** argv) {
   m_pDvdVideoPicture = NULL;
   formatCtx = NULL;
   codecCtx = NULL;
+  codecParameters = NULL;
   codec = NULL;
   AVPacket packet;
   int videoStream = -1;
@@ -56,7 +58,7 @@ int main(int argc, char** argv) {
   }
 
   for (unsigned int i = 0; i < formatCtx->nb_streams; ++i)
-    if (formatCtx->streams[i]->codec->codec_type == AVMEDIA_TYPE_VIDEO) {
+    if (formatCtx->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
       videoStream = i;
       break;
     }
@@ -67,8 +69,9 @@ int main(int argc, char** argv) {
   }
   CLog::Log(LOGDEBUG, "%s::%s - Video stream in the file is stream number %d", CLASSNAME, __func__, videoStream);
 
-  codecCtx = formatCtx->streams[videoStream]->codec;
-  codec = avcodec_find_decoder(codecCtx->codec_id);
+  codecParameters = formatCtx->streams[videoStream]->codecpar;
+  codec = avcodec_find_decoder(codecParameters->codec_id);
+  codecCtx = avcodec_alloc_context3(codec);
   if (codec == NULL) {
     CLog::Log(LOGERROR, "%s::%s - Unsupported codec.", CLASSNAME, __func__);
     return false;
@@ -83,12 +86,12 @@ int main(int argc, char** argv) {
 
   m_cHints = new CDVDStreamInfo();
   m_cHints->software = false;
-  m_cHints->extradata = codecCtx->extradata;
-  m_cHints->extrasize = codecCtx->extradata_size;
-  m_cHints->codec     = codecCtx->codec_id;
-  m_cHints->codec_tag = codecCtx->codec_tag;
-  m_cHints->width     = codecCtx->width;
-  m_cHints->height    = codecCtx->height;
+  m_cHints->extradata = codecParameters->extradata;
+  m_cHints->extrasize = codecParameters->extradata_size;
+  m_cHints->codec     = codecParameters->codec_id;
+  m_cHints->codec_tag = codecParameters->codec_tag;
+  m_cHints->width     = codecParameters->width;
+  m_cHints->height    = codecParameters->height;
 
   CLog::Log(LOGDEBUG, "%s::%s - Header of size %d", CLASSNAME, __func__, codecCtx->extradata_size);
 
@@ -110,6 +113,8 @@ int main(int argc, char** argv) {
 
   clock_gettime(CLOCK_REALTIME, &startTs);
 
+  av_init_packet(&packet);
+
   while (av_read_frame(formatCtx, &packet) >= 0) {
 
     if (packet.stream_index != videoStream)
@@ -127,7 +132,7 @@ int main(int argc, char** argv) {
     if (ret & VC_PICTURE)
       m_cVideoCodec->GetPicture(m_pDvdVideoPicture);
 
-    av_free_packet(&packet);
+    av_packet_unref(&packet);
     usleep(1000*17);
   }
 
