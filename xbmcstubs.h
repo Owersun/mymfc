@@ -25,6 +25,9 @@
 #define VC_FLUSHED  0x00000010  // the decoder lost it's state, we need to restart decoding again
 #define VC_DROPPED  0x00000020  // needed to identify if a picture was dropped
 
+class CProcessInfo {
+};
+
 class CDVDCodecOptions {
 };
 
@@ -99,6 +102,7 @@ public:
 
 class CDVDVideoCodec {
 public:
+  CDVDVideoCodec(CProcessInfo &processInfo) { };
   virtual bool ClearPicture(DVDVideoPicture* pDvdVideoPicture)
   {
     memset(pDvdVideoPicture, 0, sizeof(DVDVideoPicture));

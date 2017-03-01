@@ -32,7 +32,7 @@
 #endif
 #define CLASSNAME "CDVDVideoCodecMFC"
 
-CDVDVideoCodecMFC::CDVDVideoCodecMFC() : CDVDVideoCodec() {
+CDVDVideoCodecMFC::CDVDVideoCodecMFC(CProcessInfo &processInfo) : CDVDVideoCodec(processInfo) {
 
   m_iDecoderHandle = NULL;
   m_iConverterHandle = NULL;
@@ -232,15 +232,15 @@ bool CDVDVideoCodecMFC::Open(CDVDStreamInfo &hints, CDVDCodecOptions &options) {
 
   // Test what formats we can get finally
   // If converter is present, it is our final sink
-  (m_iConverterHandle) ? finalSink = m_iConverterHandle : finalSink = m_iDecoderHandle;
+  finalSink = m_iConverterHandle ? m_iConverterHandle : m_iDecoderHandle;
   // Test NV12 2 Planes Y/CbCr
   memzero(fmt);
   fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
   fmt.fmt.pix_mp.pixelformat = V4L2_PIX_FMT_NV12M;
   if (ioctl(finalSink->device, VIDIOC_TRY_FMT, &fmt) == 0)
     finalFormat = V4L2_PIX_FMT_NV12M;
-  memzero(fmt);
 /*
+  memzero(fmt);
   // Test YUV420 3 Planes Y/Cb/Cr
   fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
   fmt.fmt.pix_mp.pixelformat = V4L2_PIX_FMT_YUV420M;
@@ -444,9 +444,10 @@ bool CDVDVideoCodecMFC::Open(CDVDStreamInfo &hints, CDVDCodecOptions &options) {
 
 void CDVDVideoCodecMFC::SetDropState(bool bDrop) {
 
+  debug_log(LOGDEBUG, "%s::%s - setting state to %d", CLASSNAME, __func__, bDrop);
   m_bDropPictures = bDrop;
   if (m_bDropPictures)
-    m_videoBuffer.iFlags |=  DVP_FLAG_DROPPED;
+    m_videoBuffer.iFlags |= DVP_FLAG_DROPPED;
   else
     m_videoBuffer.iFlags &= ~DVP_FLAG_DROPPED;
 
@@ -501,16 +502,15 @@ int CDVDVideoCodecMFC::Decode(BYTE* pData, int iSize, double dts, double pts) {
       return VC_ERROR;
   }
 
-  if (m_bDropPictures) {
-
-    CLog::Log(LOGWARNING, "%s::%s - Dropping frame with index %d", CLASSNAME, __func__, m_Buffer->iIndex);
-    // Queue it back to MFC CAPTURE since the picture is dropped anyway
-    m_MFCCapture->PushBuffer(m_Buffer);
-    return VC_DROPPED | VC_BUFFER;
-
-  }
-
   if (m_iConverterHandle) {
+
+    if (m_bDropPictures) {
+      CLog::Log(LOGWARNING, "%s::%s - Dropping frame with index %d", CLASSNAME, __func__, m_Buffer->iIndex);
+      // Queue it back to MFC CAPTURE since we are in an underrun condition
+      m_MFCCapture->PushBuffer(m_Buffer);
+      return (VC_DROPPED | VC_BUFFER);
+    }
+
     // Push the buffer got from MFC Capture to FIMC Output (decoded from decoder to converter)
     if (!m_FIMCOutput->PushBuffer(m_Buffer)) {
       m_bCodecHealthy = false;
@@ -547,7 +547,7 @@ int CDVDVideoCodecMFC::Decode(BYTE* pData, int iSize, double dts, double pts) {
 
   //debug_log("Decode time: %d", XbmcThreads::SystemClockMillis() - dtime);
   // Picture is finally ready to be processed further and more info can be enqueued
-  return VC_PICTURE | VC_BUFFER;
+  return (VC_PICTURE | VC_BUFFER);
 
 }
 
@@ -575,11 +575,5 @@ bool CDVDVideoCodecMFC::GetPicture(DVDVideoPicture* pDvdVideoPicture) {
   *pDvdVideoPicture = m_videoBuffer;
   debug_log(LOGDEBUG, "%s::%s - output frame pts %lf", CLASSNAME, __func__, m_videoBuffer.pts);
   return true;
-
-}
-
-bool CDVDVideoCodecMFC::ClearPicture(DVDVideoPicture* pDvdVideoPicture) {
-
-  return CDVDVideoCodec::ClearPicture(pDvdVideoPicture);
 
 }

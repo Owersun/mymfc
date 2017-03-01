@@ -24,7 +24,7 @@
 class CDVDVideoCodecMFC : public CDVDVideoCodec
 {
 public:
-  CDVDVideoCodecMFC();
+  CDVDVideoCodecMFC(CProcessInfo &processInfo);
   virtual ~CDVDVideoCodecMFC();
   virtual bool Open(CDVDStreamInfo &hints, CDVDCodecOptions &options);
   virtual void Dispose();
@@ -32,7 +32,6 @@ public:
   virtual void Reset();
   bool GetPictureCommon(DVDVideoPicture* pDvdVideoPicture);
   virtual bool GetPicture(DVDVideoPicture* pDvdVideoPicture);
-  virtual bool ClearPicture(DVDVideoPicture* pDvdVideoPicture);
   virtual void SetDropState(bool bDrop);
   virtual const char* GetName() { return m_name.c_str(); }; // m_name is never changed after open
 
