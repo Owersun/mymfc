@@ -34,6 +34,7 @@ public:
   virtual bool GetPicture(DVDVideoPicture* pDvdVideoPicture);
   virtual void SetDropState(bool bDrop);
   virtual const char* GetName() { return m_name.c_str(); }; // m_name is never changed after open
+  virtual bool GetCodecStats(double &pts, int &droppedFrames, int &skippedPics) override;
 
 protected:
   std::string m_name;
@@ -58,6 +59,9 @@ protected:
   bool m_bDropPictures;
 
   DVDVideoPicture   m_videoBuffer;
+
+  int m_droppedFrames;
+  double m_codecPts;
 
   bool OpenDevices();
 };

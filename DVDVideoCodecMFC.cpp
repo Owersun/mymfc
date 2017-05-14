@@ -44,6 +44,9 @@ CDVDVideoCodecMFC::CDVDVideoCodecMFC(CProcessInfo &processInfo) : CDVDVideoCodec
   m_Buffer = NULL;
   m_BufferNowOnScreen = NULL;
 
+  m_droppedFrames = 0;
+  m_codecPts = DVD_NOPTS_VALUE;
+
   memzero(m_videoBuffer);
 
 }
@@ -67,7 +70,7 @@ bool CDVDVideoCodecMFC::OpenDevices() {
         char sysname[64];
         char drivername[32];
         char target[1024];
-        int ret;
+        ssize_t ret;
 
         snprintf(sysname, 64, "/sys/class/video4linux/%s", ent->d_name);
         snprintf(name, 64, "/sys/class/video4linux/%s/name", ent->d_name);
@@ -192,8 +195,8 @@ bool CDVDVideoCodecMFC::Open(CDVDStreamInfo &hints, CDVDCodecOptions &options) {
   struct V4l2SinkBuffer sinkBuffer;
   V4l2Device *finalSink = NULL;
   int finalFormat = -1;
-  int resultVideoWidth;
-  int resultVideoHeight;
+  unsigned int resultVideoWidth;
+  unsigned int resultVideoHeight;
   int resultLineSize;
   unsigned int extraSize = 0;
   uint8_t *extraData = NULL;
@@ -209,6 +212,8 @@ bool CDVDVideoCodecMFC::Open(CDVDStreamInfo &hints, CDVDCodecOptions &options) {
   m_BufferNowOnScreen->iIndex = -1;
   m_bVideoConvert = false;
   m_bDropPictures = false;
+  m_droppedFrames = 0;
+  m_codecPts = DVD_NOPTS_VALUE;
   memzero(m_videoBuffer);
 
   if (!OpenDevices()) {
@@ -285,7 +290,6 @@ bool CDVDVideoCodecMFC::Open(CDVDStreamInfo &hints, CDVDCodecOptions &options) {
       break;
     default:
       return false;
-      break;
   }
   fmt.fmt.pix_mp.plane_fmt[0].sizeimage = BUFFER_SIZE;
   // Set encoded format
@@ -436,6 +440,11 @@ bool CDVDVideoCodecMFC::Open(CDVDStreamInfo &hints, CDVDCodecOptions &options) {
   m_BufferNowOnScreen->iIndex = -1;
   m_bCodecHealthy = true;
 
+  m_processInfo.SetVideoDecoderName(m_name, true);
+  m_processInfo.SetVideoDimensions(resultVideoWidth, resultVideoHeight);
+  m_processInfo.SetVideoDeintMethod("hardware");
+  m_processInfo.SetVideoPixelFormat("YUV 4:2:0");
+
   CLog::Log(LOGNOTICE, "%s::%s - MFC Setup succesfull (%dx%d, linesize %d, format 0x%x), start streaming", CLASSNAME, __func__, resultVideoWidth, resultVideoHeight, resultLineSize, finalFormat);
 
   return true;
@@ -463,7 +472,7 @@ int CDVDVideoCodecMFC::Decode(BYTE* pData, int iSize, double dts, double pts) {
 
   if(pData) {
     int demuxer_bytes = iSize;
-    uint8_t *demuxer_content = pData;
+    BYTE *demuxer_content = pData;
 
     if(m_bVideoConvert) {
       m_converter.Convert(demuxer_content, demuxer_bytes);
@@ -476,7 +485,7 @@ int CDVDVideoCodecMFC::Decode(BYTE* pData, int iSize, double dts, double pts) {
       debug_log(LOGDEBUG, "%s::%s - Got empty buffer %d from MFC Output, filling", CLASSNAME, __func__, m_Buffer->iIndex);
       m_Buffer->iBytesUsed[0] = demuxer_bytes;
       memcpy((uint8_t *)m_Buffer->cPlane[0], demuxer_content, m_Buffer->iBytesUsed[0]);
-      long* longPts = (long*)&pts;
+      long* longPts = (long*)&dts;
       m_Buffer->timeStamp.tv_sec = longPts[0];
       m_Buffer->timeStamp.tv_usec = longPts[1];
 
@@ -506,6 +515,9 @@ int CDVDVideoCodecMFC::Decode(BYTE* pData, int iSize, double dts, double pts) {
 
     if (m_bDropPictures) {
       CLog::Log(LOGWARNING, "%s::%s - Dropping frame with index %d", CLASSNAME, __func__, m_Buffer->iIndex);
+      long longPts[2] = { m_Buffer->timeStamp.tv_sec, m_Buffer->timeStamp.tv_usec };
+      m_codecPts = *((double*)&longPts[0]);
+      m_droppedFrames++;
       // Queue it back to MFC CAPTURE since we are in an underrun condition
       m_MFCCapture->PushBuffer(m_Buffer);
       return (VC_DROPPED | VC_BUFFER);
@@ -538,7 +550,7 @@ int CDVDVideoCodecMFC::Decode(BYTE* pData, int iSize, double dts, double pts) {
   m_videoBuffer.data[0]         = (BYTE*)m_Buffer->cPlane[0];
   m_videoBuffer.data[1]         = (BYTE*)m_Buffer->cPlane[1];
   m_videoBuffer.data[2]         = (BYTE*)m_Buffer->cPlane[2];
-  m_videoBuffer.pts             = *((double*)&longPts[0]);
+  m_videoBuffer.pts             = m_codecPts = *((double*)&longPts[0]);
 
   std::swap(m_Buffer, m_BufferNowOnScreen);
 
@@ -551,7 +563,19 @@ int CDVDVideoCodecMFC::Decode(BYTE* pData, int iSize, double dts, double pts) {
 
 }
 
+bool CDVDVideoCodecMFC::GetCodecStats(double &pts, int &droppedFrames, int &skippedPics) {
+  pts = m_codecPts;
+  droppedFrames = m_droppedFrames;
+  skippedPics = 0;
+  m_droppedFrames = 0;
+
+  return true;
+}
+
 void CDVDVideoCodecMFC::Reset() {
+
+  m_droppedFrames = 0;
+  m_codecPts = DVD_NOPTS_VALUE;
 
   if (m_bCodecHealthy) {
     CLog::Log(LOGDEBUG, "%s::%s - Codec Reset requested, but codec is healthy, doing soft-flush", CLASSNAME, __func__);

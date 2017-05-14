@@ -26,6 +26,14 @@
 #define VC_DROPPED  0x00000020  // needed to identify if a picture was dropped
 
 class CProcessInfo {
+public:
+  CProcessInfo() {};
+  virtual ~CProcessInfo() {};
+
+  void SetVideoDecoderName(std::string name, bool isHw) {};
+  void SetVideoDeintMethod(std::string method) {};
+  void SetVideoPixelFormat(std::string pixFormat) {};
+  void SetVideoDimensions(int width, int height) {};
 };
 
 class CDVDCodecOptions {
@@ -102,11 +110,18 @@ public:
 
 class CDVDVideoCodec {
 public:
-  CDVDVideoCodec(CProcessInfo &processInfo) { };
+  CDVDVideoCodec(CProcessInfo &processInfo) : m_processInfo(processInfo) {};
   virtual bool ClearPicture(DVDVideoPicture* pDvdVideoPicture)
   {
     memset(pDvdVideoPicture, 0, sizeof(DVDVideoPicture));
     return true;
   }
+  virtual bool GetCodecStats(double &pts, int &droppedFrames, int &skippedPics)
+  {
+    droppedFrames = -1;
+    skippedPics = -1;
+    return false;
+  }
+protected:
+  CProcessInfo &m_processInfo;
 };
-

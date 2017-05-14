@@ -78,9 +78,9 @@ int main(int argc, char** argv) {
   }
   CLog::Log(LOGDEBUG, "%s::%s - AVCodec: %s, id %d", CLASSNAME, __func__, codec->name, codec->id);
 
-  CProcessInfo processinfo;
+  CProcessInfo *processinfo = new CProcessInfo();
 
-  m_cVideoCodec = new CDVDVideoCodecMFC(processinfo);
+  m_cVideoCodec = new CDVDVideoCodecMFC(*processinfo);
 
   m_cHints = new CDVDStreamInfo();
   m_cHints->software = false;
